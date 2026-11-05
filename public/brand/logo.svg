@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#E3C877"/>
+      <stop offset="50%" stop-color="#C9A44C"/>
+      <stop offset="100%" stop-color="#9A7B2F"/>
+    </linearGradient>
+    <linearGradient id="goldGlow" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#C9A44C" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#C9A44C" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#C9A44C" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+
+  <!-- Background Dark Canvas -->
+  <rect width="500" height="500" rx="40" fill="#0A0A0A"/>
+  
+  <!-- Subtle Outer Border with Gold Accent -->
+  <rect x="15" y="15" width="470" height="470" rx="30" fill="none" stroke="url(#goldGrad)" stroke-width="2" stroke-opacity="0.4"/>
+  <rect x="25" y="25" width="450" height="450" rx="24" fill="none" stroke="#2A2A2A" stroke-width="1"/>
+
+  <!-- Geometric Diamond Backdrop -->
+  <polygon points="250,75 390,215 250,355 110,215" fill="none" stroke="url(#goldGrad)" stroke-width="3" filter="url(#shadow)"/>
+  <polygon points="250,95 370,215 250,335 130,215" fill="none" stroke="#C9A44C" stroke-width="1" stroke-opacity="0.4" stroke-dasharray="4 4"/>
+
+  <!-- Central Floating Diamond Accent -->
+  <polygon points="250,185 275,215 250,245 225,215" fill="url(#goldGrad)"/>
+
+  <!-- MW Monogram Geometric Path -->
+  <!-- M Shape -->
+  <path d="M 160 270 L 160 160 L 215 225 L 250 185 L 285 225 L 340 160 L 340 270" 
+        fill="none" 
+        stroke="url(#goldGrad)" 
+        stroke-width="12" 
+        stroke-linecap="round" 
+        stroke-linejoin="round"/>
+
+  <!-- W Interlocking Underlay / Accent -->
+  <path d="M 180 230 L 215 295 L 250 255 L 285 295 L 320 230" 
+        fill="none" 
+        stroke="#E3C877" 
+        stroke-width="8" 
+        stroke-linecap="round" 
+        stroke-linejoin="round"/>
+
+  <!-- Central Diamond Highlight Spark -->
+  <circle cx="250" cy="215" r="4" fill="#FFFFFF"/>
+
+  <!-- Brand Typography -->
+  <!-- "MW" Serif Monogram Title -->
+  <text x="250" y="395" 
+        font-family="'Playfair Display', 'Cormorant Garamond', Georgia, serif" 
+        font-size="34" 
+        font-weight="700" 
+        letter-spacing="12" 
+        fill="url(#goldGrad)" 
+        text-anchor="middle">
+    MW
+  </text>
+
+  <!-- "TRENDS" Elegant Script / High Tracking Subtitle -->
+  <text x="250" y="430" 
+        font-family="'Playfair Display', 'Inter', sans-serif" 
+        font-size="16" 
+        font-weight="400" 
+        letter-spacing="16" 
+        fill="#A8A29A" 
+        text-anchor="middle">
+    TRENDS
+  </text>
+
+  <!-- Premium Underline Accent -->
+  <line x1="210" y1="445" x2="290" y2="445" stroke="url(#goldGrad)" stroke-width="1.5" stroke-linecap="round"/>
+</svg>

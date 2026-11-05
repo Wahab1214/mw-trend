@@ -1,0 +1,221 @@
+# MW Trends — Implementation Checklist (TODO.md)
+
+## Milestone 1: Project Setup & Design System
+- [x] Verify environment tools (Node v26.13.0, npm 11.20.0, Git installed)
+- [x] Initialize Next.js App Router project with TypeScript strict mode, Tailwind CSS
+- [x] Install core dependencies: `next-themes`, `lucide-react`, `zod`, `react-hook-form`, `@hookform/resolvers`, `framer-motion`, `recharts`, `@tanstack/react-table`, `@supabase/supabase-js`, `@supabase/ssr`, `canvas-confetti`
+- [x] Configure `tailwind.config.ts` with brand tokens:
+  - Dark theme: bg `#0A0A0A`, surface `#121212`, elevated `#1A1A1A`, border `#2A2A2A`, text `#F5F1E8` / `#A8A29A` / `#6F6A63`, gold `#C9A44C` (light `#E3C877`, dark `#9A7B2F`)
+  - Light theme: bg `#FAF8F3`, surface `#FFFFFF`, elevated `#F3EFE6`, border `#E4DED1`, text `#14120F` / `#5C564D` / `#8C857A`, gold `#A8832A` (light `#C9A44C`, dark `#7A5F1B`)
+  - Status tokens: success `#2E9D6B`, warning `#D98E04`, danger `#D64545`, info `#3B82C4`, blush pink `#F4C6D0`, lavender `#D9CFF0`
+  - Fonts: Display Serif (Playfair Display), Inter for body, script accents
+- [x] Setup Theme Provider with `next-themes` (system default, persistent, zero flash)
+- [x] Build Brand Assets:
+  - SVG geometric monogram logo (gold on black with central diamond, "TRENDS" in script below) at `/public/brand/logo.svg`
+  - Monogram icon at `/public/brand/monogram.svg`
+- [x] Build Core Reusable UI Component Kit:
+  - Button, Input, Select, Textarea, Checkbox, Switch, Modal, Drawer, Tabs, Accordion, Toast, Skeleton, Badge, Price (PKR format `Rs. X,XXX`), Rating, QuantityStepper, Table, Pagination, EmptyState, Breadcrumb, ThemeToggle
+- [x] Create layout chrome:
+  - Announcement bar (dismissible, promo banner)
+  - Sticky header (logo, responsive nav, instant search modal, wishlist icon + badge, cart drawer toggle + badge, theme toggle, account link)
+  - Footer (brand info, links, payment badge icons, social channels, WhatsApp CTA, newsletter)
+  - Floating WhatsApp chat button with quick message
+  - Mobile bottom navigation bar (Home, Shop, Wishlist, Bag)
+- [x] Create `/style-guide` hidden showcase page for all UI components in both dark & light themes
+- [x] Run lint, typecheck, verify in browser
+
+## Milestone 2: Database Schema, Migrations, RLS, Auth & Roles
+- [x] Create complete Supabase SQL migration files (`/supabase/migrations/20261105000000_init_schema.sql`):
+  - Profiles, roles, permissions, user_roles
+  - Categories (with parent/sub-hierarchy), collections, tags
+  - Products, product_images, variants (size, color, SKU, price, cost_price, stock)
+  - Customization fields (type, label, placeholder, options, price_delta, char_limit, required, preview_layer)
+  - Orders, order_items (customization JSON, variant info, line totals, cost), order_status_history
+  - Payments, payment_proofs
+  - Coupons, coupon_usages, sales/campaigns, flash_sales, bundles
+  - Banners, reviews (rating, comment, photo_urls, verified_buyer, status)
+  - Wishlists, customer_addresses, shipping_rules, store_settings, contact_messages, audit_logs, custom_pages
+  - Row Level Security (RLS) policies on every table
+  - Triggers & functions (updated_at, atomic stock decrement, order number generation `MW-000101`)
+- [x] Create realistic seed data script (`/supabase/seed.sql`):
+  - Owner and staff accounts
+  - All product categories: Mugs, Pens, T-Shirts, Hoodies, Caps, Phone Cases, Love Cards, Friendship Cards, Gift Bundles
+  - Realistic product listings with multiple images, variants, customization templates
+  - Active coupons, flash sale, announcement banner, initial reviews
+- [x] Setup Supabase Client & Server helpers (`@supabase/ssr`) with safe auth cookie management
+- [x] Build Role-Based Access Control (RBAC) matrix and middleware protection:
+  - Roles: Owner, Admin, Manager, Order Handler, Content/SEO Editor, Viewer
+  - Permission checks both in UI, server actions, and RLS policies
+
+## Milestone 3: Storefront (Public Experience)
+- [x] Home Page (`/`):
+  - Hero banner with CTA and trending gifts highlight
+  - Active Flash Sale countdown banner
+  - Trending Now & New Drops product carousels/grids
+  - Occasion Collections (Valentine's, Friendship Day, Eid, Birthday, Wedding, Anniversary)
+  - Gift Finder Wizard interactive teaser
+  - Curated Bundles & Combos section
+  - Customer Testimonials & Reviews with verified badges
+  - Trust Badges (Cash on Delivery, Fast Nationwide Delivery, Quality Guarantee, Easy Returns)
+  - Instagram & WhatsApp Community CTA
+- [x] Shop Catalog (`/shop`):
+  - Responsive grid / list view toggle
+  - Multi-faceted filters (Category, Price range slider, Occasion, In-stock only, On-sale only, Rating)
+  - URL-synced search params for sharable filtered views
+  - Sorting (Price Low-High, Price High-Low, Newest, Best Selling, Rating)
+  - Clean pagination with Suspense streaming
+- [x] Category (`/category/[slug]`) and Collection (`/collection/[slug]`) pages with dynamic hero & filters
+- [x] Product Detail Page (`/product/[slug]`):
+  - Multi-image gallery with thumbnail selector
+  - Variant selector (Size, Color) updating price, SKU, and stock dynamically
+  - Real-time stock status badge (e.g., "Only 3 left in stock")
+  - Per-product allowed payment methods indicator (COD, JazzCash, Easypaisa, Card, Bank)
+  - Nationwide delivery estimator & shipping info tab
+  - Verified customer reviews with rating breakdown
+  - Related and frequently bought together recommendations
+  - Social share & Wishlist button
+  - Sticky mobile Add-to-Cart bar
+  - Direct "Order via WhatsApp" pre-filled button
+- [x] Instant Typos-tolerant Search (`/search` and header modal):
+  - Instant dropdown suggestions with live product results
+- [x] Gift Finder Wizard (`/gift-finder`):
+  - Step 1: Who is it for? (Him, Her, Bestie, Couple, Colleague)
+  - Step 2: What is the occasion? (Birthday, Anniversary, Valentine's, Friendship, Eid, Just Because)
+  - Step 3: What is your budget? (Under 1,000, 1,000-2,000, 2,000-3,500, 3,500+)
+  - Curated recommendation results with quick Add-to-Cart
+- [x] Wishlist drawer & page (`/wishlist`):
+  - Works for guests via localStorage
+- [x] Static Information Pages:
+  - `/about`, `/contact` (with DB form submission & alert), `/faq`, `/shipping-returns`, `/privacy`, `/terms`
+- [x] Custom `not-found.tsx` (404) and `error.tsx` pages with brand styling
+
+## Milestone 4: Product Customization Engine & Live Preview
+- [x] Customization Form Engine (Phase 1):
+  - Admin-configured fields per product: Name/Text input, Custom Message, Font Choice selector, Text Color picker, Date picker
+  - Character counter & client/server Zod validation
+  - Live Interactive Mockup Canvas/SVG Preview:
+    - Renders custom text dynamically on Mug, T-Shirt, Pen, Hoodie, Cap, Phone Case, Love/Friendship Card mockup layers
+    - Realistic perspective, font styling, color, curvature/positioning
+  - Customization payload attached to cart item and persisted through order lifecycle
+- [x] Phase 2 Architecture Ready (Feature flag OFF):
+  - Supabase Storage bucket definition for customer uploads
+  - Schema columns ready on order items (`customer_upload_url`, `customer_upload_notes`)
+  - Admin toggle scaffolded, documentation in `/docs/PHASE2_UPLOAD.md`
+
+## Milestone 5: Cart, Shipping, & Checkout Engine
+- [x] Cart System (Drawer + `/cart` page):
+  - Line items with variant details and customization specs
+  - Quantity increment/decrement with stock validation
+  - Coupon application with instant discount calculation (`MW10`, `FREESHIP`, `GOLD300`, `WELCOME15`)
+  - Gift wrap toggle and personalized gift card message input
+  - Dynamic shipping estimate
+  - Free shipping progress bar ("Add Rs. 500 more for Free Delivery")
+  - Persisted cart state across browser sessions
+- [x] Checkout System (`/checkout`):
+  - Seamless Guest Checkout and Authenticated Checkout
+  - Pakistan-specific phone number validation (`03XX-XXXXXXX` or `+923XXXXXXXXX`)
+  - Pakistan major cities dropdown (Karachi, Lahore, Islamabad, Rawalpindi, Faisalabad, Multan, Peshawar, Quetta, Sialkot, Gujranwala, etc.) + free text
+  - Street address, nearest landmark, order notes
+  - Per-product payment compatibility resolution:
+    - Calculates the intersection of allowed payment methods across all cart items
+    - Clear explanatory conflict notice if items have conflicting payment methods
+- [x] Pluggable Payment Adapters (`/lib/payments`):
+  - Cash on Delivery (COD) adapter (full native flow)
+  - Manual Payment Verification adapter for JazzCash, Easypaisa, and Bank Transfer:
+    - Displays official merchant account title, number/IBAN, and instructions from Store Settings
+    - Customer uploads transaction screenshot and enters Transaction ID (TID)
+    - Saves payment proof to database for admin verification
+  - Scaffolded Gateway Adapters: JazzCash API, Easypaisa API, Stripe/PayMob Card (enabled via env flags)
+- [x] Atomic & Idempotent Order Creation:
+  - Idempotency key handling to prevent duplicate submissions on double clicks
+  - Human-readable order numbering (e.g. `MW-001041`)
+- [x] Order Confirmation & Notifications:
+  - Visual Order Success page (`/order-success/[orderNumber]`) with confetti
+  - Admin notification email and optional 1-click WhatsApp order ping
+
+## Milestone 6: Customer Account & Real-Time Order Tracking
+- [x] Public Order Tracking Portal (`/track-order`):
+  - Lookup by Order Number (`MW-XXXXXX`) + Phone Number
+  - Visual status progress timeline:
+    `New` → `Confirmed` → `In Production` → `Shipped` → `Delivered`
+  - Courier partner name (TCS, Leopards, Call Courier, Trax, Rider, M&P) + Tracking number + direct tracking URL
+
+## Milestone 7: Comprehensive Admin Panel (`/admin`)
+- [x] Protected Admin Layout:
+  - Dark / Light mode support with sidebar navigation and mobile drawer
+  - Notifications bell for new orders and pending payments
+- [x] Admin Analytics Dashboard (`/admin`):
+  - Date range filter: Today, Last 7 Days, This Month, Year
+  - Key KPI cards: Total Sales, Net Profit, Profit Margin %, Total Orders, Pending Verification, AOV
+  - Recharts visual graphs: Sales over time, Orders by Status, Revenue by Source (Website, WhatsApp, Instagram, etc.)
+  - Low stock warning inventory table
+  - Pending payment verification queue
+- [x] Product Management (`/admin/products`):
+  - Full CRUD: Create, Edit, Duplicate, Delete
+  - Category, collection, tag, and occasion association
+  - Customization Field Builder (toggle fields, set labels, char limits, mockup layer coordinates)
+  - Allowed payment methods selector per product
+  - SEO fields (Meta title, description, focus keyword with real-time SEO quality score)
+  - CSV Export
+- [x] Order Management (`/admin/orders`):
+  - Advanced data table: filter by status, payment status, payment method, city, date, courier
+  - Order Detail View (`/admin/orders/[id]`):
+    - Customer and shipping destination details
+    - Items breakdown with custom text/specifications + printable layout
+    - Payment proof inspection (modal to view customer screenshot and TID) with Approve / Reject actions
+    - Status changer with automatic audit log entry
+    - Courier assignment (Courier name, Tracking number, Dispatch date)
+    - Profit calculation: Selling price - Cost price - Courier cost - Packing/ad expenses = Net Order Profit
+    - Print invoice/packing slip/label (PDF/Print)
+    - 1-click WhatsApp customer message shortcut (pre-filled with order update)
+  - Manual Order Creation Modal (`/admin/orders/new`):
+    - Create orders from WhatsApp, Facebook, Instagram, TikTok, Phone calls
+    - Select source channel, customer info, products, shipping charges
+- [x] Customer Management (`/admin/customers`):
+  - Customer list with search, total orders count, lifetime spend
+  - Block / Unblock customer toggle (prevents COD abuse)
+- [x] Reviews Moderation (`/admin/reviews`):
+  - Approve, reject, or feature customer reviews
+- [x] Settings Management (`/admin/settings`):
+  - Store Profile (name, phone, WhatsApp number, email, address)
+  - Shipping Rules (flat rate PKR, free shipping threshold PKR, gift wrap fee)
+  - Payment Accounts (JazzCash title & number, Easypaisa title & number, Bank account details)
+  - Maintenance mode toggle
+- [x] Team & RBAC Management (`/admin/team`):
+  - Staff list with roles and active status
+  - Invite staff member by email
+  - Granular permissions matrix (products, orders, customers, marketing, settings, team)
+- [x] Activity / Audit Log (`/admin/audit-logs`) recording every administrative mutation
+
+## Milestone 8: Marketing, Promotions & Sales Engine
+- [x] Discount & Coupon Manager (`/admin/marketing/coupons`):
+  - Fixed PKR discount or Percentage discount
+  - Minimum order value, max discount cap
+  - Usage limits, active status toggle
+- [x] Flash Sales System (`/admin/marketing/flash-sales`):
+  - Scheduled start and end datetime
+  - Product selection with flash sale price
+  - Dynamic countdown timer banner on storefront
+- [x] Gift Bundles & Combos (`/admin/marketing/bundles`):
+  - Multi-product bundle setup (e.g. Mug + Card combo at discounted price)
+  - Direct 1-click bundle purchase on storefront
+
+## Milestone 9: SEO & Discovery Architecture
+- [x] Server-rendered metadata on all pages (`generateMetadata` with dynamic title, description, OG images)
+- [x] Dynamic `sitemap.xml` generating URLs for all products, categories, collections, and pages
+- [x] `robots.txt` configuration for crawlers
+- [x] Rich Structured Data (JSON-LD):
+  - Organization schema
+  - WebSite with SearchAction
+  - Product schema with offers, pricing, availability, and aggregate reviews
+  - FAQ schema on FAQ page
+- [x] OpenGraph and Twitter card meta tags
+- [x] URL slug management with canonical URLs
+
+## Milestone 10: Performance, Polish, Testing & Quality Gates
+- [x] Zero TypeScript errors (`npm run typecheck` passed)
+- [x] Zero ESLint errors (`npm run lint` passed)
+- [x] Production build passes (`npm run build` compiled 32/32 routes successfully)
+- [x] WCAG AA contrast check across both light and dark themes
+- [x] End-to-End verified: browse → search → product → customize with live preview → add to cart → coupon → checkout (COD and manual payment proof) → order created → admin inspection & status update → customer tracking
+- [x] Documentation completed (`README.md`, `.env.example`, `/docs/ADMIN_GUIDE.md`, `/docs/PHASE2_UPLOAD.md`)

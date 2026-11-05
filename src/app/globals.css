@@ -1,0 +1,123 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* LIGHT THEME (Default or Selected) */
+    --background: #FAF8F3;
+    --surface: #FFFFFF;
+    --elevated: #F3EFE6;
+    --border: #E4DED1;
+    --border-light: #ECE7DC;
+    
+    --text-primary: #14120F;
+    --text-secondary: #5C564D;
+    --text-muted: #8C857A;
+
+    --gold: #A8832A;
+    --gold-light: #C9A44C;
+    --gold-dark: #7A5F1B;
+
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-serif: 'Playfair Display', 'Cormorant Garamond', Georgia, serif;
+    --font-script: 'Brush Script MT', cursive, serif;
+  }
+
+  .dark {
+    /* DARK THEME */
+    --background: #0A0A0A;
+    --surface: #121212;
+    --elevated: #1A1A1A;
+    --border: #2A2A2A;
+    --border-light: #333333;
+
+    --text-primary: #F5F1E8;
+    --text-secondary: #A8A29A;
+    --text-muted: #6F6A63;
+
+    --gold: #C9A44C;
+    --gold-light: #E3C877;
+    --gold-dark: #9A7B2F;
+  }
+
+  * {
+    border-color: var(--border);
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    transition: background-color 0.25s ease, color 0.25s ease;
+    overflow-x: hidden;
+  }
+
+  /* Accessibility: Prefers reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-delay: -1ms !important;
+      animation-duration: 1ms !important;
+      animation-iteration-count: 1 !important;
+      background-attachment: initial !important;
+      scroll-behavior: auto !important;
+      transition-delay: 0s !important;
+      transition-duration: 0s !important;
+    }
+  }
+}
+
+/* Custom Scrollbar for Luxury Aesthetics */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gold);
+}
+
+/* Luxury Gold Foil Shimmer Animation */
+@keyframes goldShimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.gold-gradient-text {
+  background: linear-gradient(135deg, var(--gold-light) 0%, var(--gold) 50%, var(--gold-dark) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.gold-border-glow {
+  box-shadow: 0 0 15px -3px rgba(201, 164, 76, 0.25);
+}
+
+/* Print styles for packing slips and invoices */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+}
