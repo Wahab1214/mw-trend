@@ -19,8 +19,10 @@ import {
   History,
   Store,
   ExternalLink,
+  LogOut,
   X
 } from 'lucide-react';
+import { useAdminAuth } from '@/lib/store/admin-auth-context';
 
 export interface AdminSidebarProps {
   isOpen?: boolean;
@@ -29,6 +31,7 @@ export interface AdminSidebarProps {
 
 export function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
   const pathname = usePathname();
+  const { logout } = useAdminAuth();
 
   const navigation = [
     { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
@@ -146,8 +149,8 @@ export function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
         </nav>
       </div>
 
-      {/* Footer Return link */}
-      <div className="p-4 border-t border-[#262626]">
+      {/* Footer Return link & Sign out */}
+      <div className="p-4 border-t border-[#262626] space-y-2">
         <Link
           href="/"
           className="flex items-center justify-between p-2 rounded-xl bg-[#181818] hover:bg-[#202020] text-[#AAAAAA] hover:text-gold transition-colors text-xs font-medium"
@@ -158,6 +161,16 @@ export function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
           </div>
           <ExternalLink className="w-3.5 h-3.5" />
         </Link>
+
+        <button
+          onClick={logout}
+          className="w-full flex items-center justify-between p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-colors text-xs font-medium"
+        >
+          <div className="flex items-center gap-2">
+            <LogOut className="w-4 h-4" />
+            <span>Sign Out</span>
+          </div>
+        </button>
       </div>
     </aside>
   );
