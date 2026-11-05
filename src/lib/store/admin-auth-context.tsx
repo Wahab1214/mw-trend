@@ -20,6 +20,12 @@ interface AdminAuthContextType {
 const AdminAuthContext = React.createContext<AdminAuthContextType | undefined>(undefined);
 
 const ADMIN_STORAGE_KEY = 'mw_admin_auth_user';
+export const MASTER_OWNER_EMAIL = 'wmofficial11@gmail.com';
+export const ALLOWED_ADMIN_EMAILS = [
+  'wmofficial11@gmail.com',
+  'owner@mwtrends.pk',
+  'admin@mwtrends.pk'
+];
 
 export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<AdminUser | null>(null);
@@ -31,6 +37,17 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       const stored = localStorage.getItem(ADMIN_STORAGE_KEY);
       if (stored) {
         setUser(JSON.parse(stored));
+      } else {
+        // Fallback to cookie check if available
+        const match = typeof document !== 'undefined' ? document.cookie.match(/mw_admin_session=([^;]+)/) : null;
+        if (match) {
+          try {
+            const cookieUser = JSON.parse(decodeURIComponent(match[1]));
+            setUser(cookieUser);
+          } catch {
+            // Ignored
+          }
+        }
       }
     } catch {
       // Local storage unreadable or SSR
@@ -42,8 +59,6 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true);
 
-    // Simulate auth check / credentials verification
-    // Accepts default store owner credentials or valid email/password
     const cleanEmail = email.trim().toLowerCase();
     const cleanPass = password.trim();
 
@@ -52,35 +67,68 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       return { success: false, error: 'Please enter both email and password.' };
     }
 
-    // Default Owner credentials: admin@mwtrends.pk or owner@mwtrends.pk with MWTrends@2026 or any master admin password
-    const isOwnerEmail = cleanEmail.includes('admin') || cleanEmail.includes('owner') || cleanEmail.includes('mwtrends');
-    const isCorrectPass = cleanPass === 'MWTrends@2026' || cleanPass === 'admin123' || cleanPass.length >= 6;
+    // STRICT OWNER & STAFF AUTHORIZATION CHECK
+    let isAuthorized = ALLOWED_ADMIN_EMAILS.includes(cleanEmail);
+    let assignedRole: 'owner' | 'manager' | 'fulfillment' | 'support' = 'owner';
+    let staffName = cleanEmail === MASTER_OWNER_EMAIL ? 'Wahab (Owner)' : 'Store Owner';
 
-    if (isCorrectPass) {
-      const loggedUser: AdminUser = {
-        id: 'usr_admin_001',
-        email: cleanEmail,
-        name: isOwnerEmail ? 'Store Owner' : 'MW Admin',
-        role: 'owner',
-      };
-
-      setUser(loggedUser);
-      try {
-        localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(loggedUser));
-        // Set HTTP cookie for Next.js edge middleware protection
-        document.cookie = `mw_admin_session=${encodeURIComponent(JSON.stringify(loggedUser))}; path=/; max-age=604800; SameSite=Lax`;
-      } catch {
-        // Ignored
+    // Also check if this email is an invited staff member
+    try {
+      if (typeof window !== 'undefined') {
+        const staffList = localStorage.getItem('mw_staff_members');
+        if (staffList) {
+          const staff = JSON.parse(staffList);
+          const match = staff.find((s: { email?: string; isActive?: boolean; role?: any; name?: string }) => 
+            s.email?.toLowerCase() === cleanEmail && s.isActive !== false
+          );
+          if (match) {
+            isAuthorized = true;
+            assignedRole = match.role || 'manager';
+            staffName = match.name || cleanEmail;
+          }
+        }
       }
+    } catch {
+      // Ignored
+    }
+
+    if (!isAuthorized) {
       setIsLoading(false);
-      return { success: true };
+      return {
+        success: false,
+        error: `Access Denied: "${cleanEmail}" is not authorized. Only the verified store owner (${MASTER_OWNER_EMAIL}) and authorized team members can access Admin Studio.`,
+      };
+    }
+
+    // Password validation (minimum 6 characters or standard master pass)
+    const isCorrectPass = cleanPass === 'MWTrends@2026' || cleanPass.length >= 6;
+
+    if (!isCorrectPass) {
+      setIsLoading(false);
+      return {
+        success: false,
+        error: 'Invalid password. Password must be at least 6 characters.',
+      };
+    }
+
+    const loggedUser: AdminUser = {
+      id: cleanEmail === MASTER_OWNER_EMAIL ? 'usr_owner_master' : 'usr_staff_' + Date.now(),
+      email: cleanEmail,
+      name: staffName,
+      role: assignedRole,
+    };
+
+    setUser(loggedUser);
+    try {
+      localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(loggedUser));
+      // Set HTTP cookie for Next.js edge middleware protection (7 days session)
+      document.cookie = `mw_admin_session=${encodeURIComponent(JSON.stringify(loggedUser))}; path=/; max-age=604800; SameSite=Lax`;
+    } catch {
+      // Ignored
     }
 
     setIsLoading(false);
-    return {
-      success: false,
-      error: 'Invalid email or password. Password must be at least 6 characters.',
-    };
+    return { success: true };
   };
 
   const logout = () => {

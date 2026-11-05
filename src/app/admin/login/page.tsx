@@ -11,7 +11,7 @@ export default function AdminLoginPage() {
   const router = useRouter();
   const { user, login } = useAdminAuth();
 
-  const [email, setEmail] = React.useState('owner@mwtrends.pk');
+  const [email, setEmail] = React.useState('wmofficial11@gmail.com');
   const [password, setPassword] = React.useState('MWTrends@2026');
   const [showPassword, setShowPassword] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -44,7 +44,7 @@ export default function AdminLoginPage() {
   };
 
   const handleQuickFill = () => {
-    setEmail('owner@mwtrends.pk');
+    setEmail('wmofficial11@gmail.com');
     setPassword('MWTrends@2026');
     setError(null);
   };
@@ -97,16 +97,16 @@ export default function AdminLoginPage() {
           <div className="mb-6 p-3 rounded-xl bg-gold/10 border border-gold/25 flex items-start gap-2.5">
             <CheckCircle2 className="w-4 h-4 text-gold shrink-0 mt-0.5" />
             <div className="text-xs flex-1">
-              <p className="font-semibold text-gold">Owner Login Credentials:</p>
+              <p className="font-semibold text-gold">Master Store Owner:</p>
               <p className="text-[#D4AF37] font-mono text-[11px] mt-0.5">
-                owner@mwtrends.pk / MWTrends@2026
+                wmofficial11@gmail.com
               </p>
               <button
                 type="button"
                 onClick={handleQuickFill}
                 className="mt-1.5 inline-flex items-center text-[10px] uppercase font-bold tracking-wider text-black bg-gold px-2 py-0.5 rounded hover:bg-gold-light transition-colors"
               >
-                Auto-Fill Credentials
+                Auto-Fill Owner
               </button>
             </div>
           </div>
