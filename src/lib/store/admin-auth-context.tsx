@@ -67,6 +67,8 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       setUser(loggedUser);
       try {
         localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(loggedUser));
+        // Set HTTP cookie for Next.js edge middleware protection
+        document.cookie = `mw_admin_session=${encodeURIComponent(JSON.stringify(loggedUser))}; path=/; max-age=604800; SameSite=Lax`;
       } catch {
         // Ignored
       }
@@ -85,6 +87,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     try {
       localStorage.removeItem(ADMIN_STORAGE_KEY);
+      document.cookie = 'mw_admin_session=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     } catch {
       // Ignored
     }
