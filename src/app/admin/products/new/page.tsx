@@ -12,6 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/toast';
 import { slugify } from '@/lib/utils';
 import { INITIAL_CATEGORIES, INITIAL_PRODUCTS } from '@/lib/mock-data';
+import { recordAuditLog } from '@/lib/audit';
 import { PaymentMethod, MockupType } from '@/types';
 import {
   ArrowLeft,
@@ -155,8 +156,9 @@ export default function NewProductPage() {
 
     try {
       const stored = localStorage.getItem('mw_trends_products');
-      const existing = stored ? JSON.parse(stored) : INITIAL_PRODUCTS;
+      const existing = stored ? JSON.parse(stored) : [];
       localStorage.setItem('mw_trends_products', JSON.stringify([newProduct, ...existing]));
+      recordAuditLog('PRODUCT_CREATED', title, `Created new product with SKU: ${sku}`);
     } catch {
       // ignore
     }

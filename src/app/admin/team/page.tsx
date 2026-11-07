@@ -10,6 +10,7 @@ import { Modal } from '@/components/ui/modal';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/components/ui/toast';
 import { RoleType } from '@/types';
+import { recordAuditLog } from '@/lib/audit';
 import { ShieldCheck, Plus, UserPlus, Lock } from 'lucide-react';
 
 interface StaffMember {
@@ -79,6 +80,7 @@ export default function AdminTeamPage() {
       try {
         const nonOwner = updated.filter((s) => s.id !== 'staff-owner-master');
         localStorage.setItem('mw_staff_members', JSON.stringify(nonOwner));
+        recordAuditLog('STAFF_INVITED', inviteEmail, `Authorized staff member: ${inviteName} as ${inviteRole}`);
       } catch {
         // ignore
       }

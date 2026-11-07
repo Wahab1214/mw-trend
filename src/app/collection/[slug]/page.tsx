@@ -18,7 +18,20 @@ export default function CollectionDetailPage() {
     notFound();
   }
 
-  const products = INITIAL_PRODUCTS.filter(
+  const [allProducts, setAllProducts] = React.useState<any[]>([]);
+
+  React.useEffect(() => {
+    try {
+      const stored = localStorage.getItem('mw_trends_products');
+      if (stored) {
+        setAllProducts(JSON.parse(stored));
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const products = allProducts.filter(
     (p) => p.collection_id === collection.id || p.is_trending
   );
 

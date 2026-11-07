@@ -30,20 +30,17 @@ export default function AdminOrdersPage() {
   const [statusFilter, setStatusFilter] = React.useState<string>('');
   const [paymentFilter, setPaymentFilter] = React.useState<string>('');
 
-  // Load any local storage customer orders
+  // Load real customer orders from storage
   React.useEffect(() => {
     try {
       const stored = localStorage.getItem('mw_trends_customer_orders');
       if (stored) {
-        const parsed = JSON.parse(stored);
-        setOrders((prev) => {
-          const ids = new Set(prev.map((o) => o.id));
-          const newOrders = parsed.filter((o: any) => !ids.has(o.id));
-          return [...newOrders, ...prev];
-        });
+        setOrders(JSON.parse(stored));
+      } else {
+        setOrders([]);
       }
     } catch {
-      // ignore
+      setOrders([]);
     }
   }, []);
 

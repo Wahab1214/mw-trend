@@ -8,11 +8,11 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/toast';
-import { INITIAL_PRODUCTS, INITIAL_CATEGORIES } from '@/lib/mock-data';
-import { PaymentMethod, MockupType } from '@/types';
-import { ArrowLeft, Sparkles, CheckCircle2 } from 'lucide-react';
+import { INITIAL_CATEGORIES } from '@/lib/mock-data';
+import { Product, PaymentMethod, MockupType } from '@/types';
+import { recordAuditLog } from '@/lib/audit';
+import { ArrowLeft, AlertCircle } from 'lucide-react';
 
 export default function EditProductPage() {
   const router = useRouter();
@@ -20,23 +20,56 @@ export default function EditProductPage() {
   const toast = useToast();
   const productId = params?.id as string;
 
-  const product = INITIAL_PRODUCTS.find((p) => p.id === productId) || INITIAL_PRODUCTS[0];
+  const [product, setProduct] = React.useState<Product | null>(null);
+  const [isLoading, setIsLoading] = React.useState(true);
 
-  const [title, setTitle] = React.useState(product.title);
-  const [slug, setSlug] = React.useState(product.slug);
-  const [sku, setSku] = React.useState(product.sku || '');
-  const [category, setCategory] = React.useState(product.category_id || INITIAL_CATEGORIES[0]?.id);
-  const [description, setDescription] = React.useState(product.description);
-  const [baseCostPrice, setBaseCostPrice] = React.useState<number>(product.base_cost_price);
-  const [regularPrice, setRegularPrice] = React.useState<number>(product.regular_price);
-  const [salePrice, setSalePrice] = React.useState<number>(product.sale_price || 0);
-  const [stock, setStock] = React.useState<number>(product.stock_quantity);
-  const [hasCustomization, setHasCustomization] = React.useState(product.has_customization);
-  const [mockupType, setMockupType] = React.useState<MockupType>(product.mockup_type || 'mug');
-  const [allowedMethods, setAllowedMethods] = React.useState<PaymentMethod[]>(product.allowed_payment_methods);
-  const [focusKeyword, setFocusKeyword] = React.useState(product.focus_keyword || '');
-  const [seoTitle, setSeoTitle] = React.useState(product.seo_title || '');
-  const [seoDescription, setSeoDescription] = React.useState(product.seo_description || '');
+  const [title, setTitle] = React.useState('');
+  const [slug, setSlug] = React.useState('');
+  const [sku, setSku] = React.useState('');
+  const [category, setCategory] = React.useState('');
+  const [description, setDescription] = React.useState('');
+  const [baseCostPrice, setBaseCostPrice] = React.useState<number>(0);
+  const [regularPrice, setRegularPrice] = React.useState<number>(0);
+  const [salePrice, setSalePrice] = React.useState<number>(0);
+  const [stock, setStock] = React.useState<number>(0);
+  const [hasCustomization, setHasCustomization] = React.useState(false);
+  const [mockupType, setMockupType] = React.useState<MockupType>('mug');
+  const [allowedMethods, setAllowedMethods] = React.useState<PaymentMethod[]>(['COD', 'JazzCash', 'Easypaisa', 'BankTransfer']);
+  const [focusKeyword, setFocusKeyword] = React.useState('');
+  const [seoTitle, setSeoTitle] = React.useState('');
+  const [seoDescription, setSeoDescription] = React.useState('');
+
+  React.useEffect(() => {
+    try {
+      const stored = localStorage.getItem('mw_trends_products');
+      if (stored) {
+        const list: Product[] = JSON.parse(stored);
+        const match = list.find((p) => p.id === productId);
+        if (match) {
+          setProduct(match);
+          setTitle(match.title);
+          setSlug(match.slug);
+          setSku(match.sku || '');
+          setCategory(match.category_id || INITIAL_CATEGORIES[0]?.id || '');
+          setDescription(match.description);
+          setBaseCostPrice(match.base_cost_price);
+          setRegularPrice(match.regular_price);
+          setSalePrice(match.sale_price || 0);
+          setStock(match.stock_quantity);
+          setHasCustomization(match.has_customization);
+          setMockupType(match.mockup_type || 'mug');
+          setAllowedMethods(match.allowed_payment_methods || ['COD', 'JazzCash', 'Easypaisa', 'BankTransfer']);
+          setFocusKeyword(match.focus_keyword || '');
+          setSeoTitle(match.seo_title || '');
+          setSeoDescription(match.seo_description || '');
+        }
+      }
+    } catch {
+      // ignore
+    } finally {
+      setIsLoading(false);
+    }
+  }, [productId]);
 
   const togglePaymentMethod = (method: PaymentMethod) => {
     setAllowedMethods((prev) =>
@@ -46,9 +79,70 @@ export default function EditProductPage() {
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success(`Product "${title}" updated successfully!`, 'Catalog Saved');
-    router.push('/admin/products');
+    if (!product) return;
+
+    try {
+      const stored = localStorage.getItem('mw_trends_products');
+      const list: Product[] = stored ? JSON.parse(stored) : [];
+      const updatedList = list.map((p) => {
+        if (p.id === productId) {
+          const selectedCatObj = INITIAL_CATEGORIES.find((c) => c.id === category);
+          return {
+            ...p,
+            title,
+            slug,
+            sku,
+            category_id: category,
+            category_name: selectedCatObj ? selectedCatObj.name : p.category_name,
+            description,
+            base_cost_price: baseCostPrice,
+            regular_price: regularPrice,
+            sale_price: salePrice || undefined,
+            stock_quantity: stock,
+            has_customization: hasCustomization,
+            mockup_type: mockupType,
+            allowed_payment_methods: allowedMethods,
+            focus_keyword: focusKeyword,
+            seo_title: seoTitle,
+            seo_description: seoDescription,
+          };
+        }
+        return p;
+      });
+
+      localStorage.setItem('mw_trends_products', JSON.stringify(updatedList));
+      recordAuditLog('PRODUCT_UPDATED', title, `Updated product SKU: ${sku || productId}`);
+      toast.success(`Product "${title}" updated successfully!`, 'Catalog Saved');
+      router.push('/admin/products');
+    } catch {
+      toast.error('Failed to save product updates.');
+    }
   };
+
+  if (isLoading) {
+    return (
+      <div className="py-16 text-center text-xs text-text-muted">
+        Loading product details...
+      </div>
+    );
+  }
+
+  if (!product) {
+    return (
+      <div className="max-w-md mx-auto py-16 text-center space-y-4">
+        <AlertCircle className="w-10 h-10 text-gold mx-auto" />
+        <h2 className="font-serif text-xl font-bold text-text-primary">Product Not Found</h2>
+        <p className="text-xs text-text-secondary">
+          The requested product does not exist in your catalog or was removed.
+        </p>
+        <Link href="/admin/products">
+          <Button variant="gold" size="sm" className="font-bold">
+            Back to Products Catalog
+          </Button>
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSave} className="max-w-5xl mx-auto space-y-8 select-none pb-12">
@@ -59,7 +153,7 @@ export default function EditProductPage() {
           </Link>
           <div>
             <h1 className="font-serif text-2xl font-black text-text-primary">
-              Edit Product: {product.title}
+              Edit Product: {title}
             </h1>
             <p className="text-xs text-text-muted">ID: {product.id}</p>
           </div>

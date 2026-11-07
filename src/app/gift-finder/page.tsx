@@ -48,6 +48,19 @@ export default function GiftFinderPage() {
     setStep(1);
   };
 
+  const [allProducts, setAllProducts] = React.useState<Product[]>([]);
+
+  React.useEffect(() => {
+    try {
+      const stored = localStorage.getItem('mw_trends_products');
+      if (stored) {
+        setAllProducts(JSON.parse(stored));
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
   // Recommendations calculation
   const recommendedProducts: Product[] = React.useMemo(() => {
     if (step !== 4) return [];
@@ -56,17 +69,17 @@ export default function GiftFinderPage() {
     const min = selectedBudget?.min ?? 0;
     const max = selectedBudget?.max ?? 10000;
 
-    let list = INITIAL_PRODUCTS.filter((p) => {
+    let list = allProducts.filter((p) => {
       const price = p.sale_price || p.regular_price;
       return price >= min && price <= max;
     });
 
     if (list.length === 0) {
-      list = INITIAL_PRODUCTS.slice(0, 4);
+      list = allProducts.slice(0, 4);
     }
 
     return list;
-  }, [step, budgetRange, budgets]);
+  }, [step, budgetRange, budgets, allProducts]);
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 select-none space-y-8">

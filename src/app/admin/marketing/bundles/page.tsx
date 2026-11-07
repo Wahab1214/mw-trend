@@ -57,49 +57,63 @@ export default function AdminBundlesPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {bundles.map((b) => (
-              <TableRow key={b.id}>
-                <TableCell>
-                  <strong className="text-xs sm:text-sm font-bold text-text-primary block">
-                    {b.title}
-                  </strong>
-                  <span className="text-[11px] text-text-muted">Slug: /{b.slug}</span>
-                </TableCell>
-                <TableCell>
-                  <span className="text-xs font-semibold text-text-secondary">
-                    {b.item_product_ids.length} Products Included
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <span className="font-serif font-bold text-gold text-xs sm:text-sm">
-                    {formatPKR(b.bundle_price)}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <span className="text-xs line-through text-text-muted">
-                    {formatPKR(b.compare_at_price)}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <span className="font-bold text-emerald-500 text-xs">
-                    Save {formatPKR(b.compare_at_price - b.bundle_price)}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <Badge variant={b.is_active ? 'success' : 'default'}>
-                    {b.is_active ? 'Active' : 'Draft'}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right">
-                  <button
-                    onClick={() => handleDelete(b.id)}
-                    className="p-1.5 rounded-lg text-text-muted hover:text-status-danger"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+            {bundles.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="py-16 text-center">
+                  <div className="flex flex-col items-center justify-center max-w-sm mx-auto text-center space-y-2">
+                    <Gift className="w-8 h-8 text-gold opacity-80" />
+                    <p className="font-serif font-bold text-sm text-text-primary">No Gift Combos Created Yet</p>
+                    <p className="text-xs text-text-muted">
+                      Group products together into discounted gift bundles to boost your Average Order Value (AOV).
+                    </p>
+                  </div>
                 </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              bundles.map((b) => (
+                <TableRow key={b.id}>
+                  <TableCell>
+                    <strong className="text-xs sm:text-sm font-bold text-text-primary block">
+                      {b.title}
+                    </strong>
+                    <span className="text-[11px] text-text-muted">Slug: /{b.slug}</span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-xs font-semibold text-text-secondary">
+                      {b.item_product_ids.length} Products Included
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="font-serif font-bold text-gold text-xs sm:text-sm">
+                      {formatPKR(b.bundle_price)}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-xs line-through text-text-muted">
+                      {formatPKR(b.compare_at_price)}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="font-bold text-emerald-500 text-xs">
+                      Save {formatPKR(b.compare_at_price - b.bundle_price)}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={b.is_active ? 'success' : 'default'}>
+                      {b.is_active ? 'Active' : 'Draft'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <button
+                      onClick={() => handleDelete(b.id)}
+                      className="p-1.5 rounded-lg text-text-muted hover:text-status-danger"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </div>

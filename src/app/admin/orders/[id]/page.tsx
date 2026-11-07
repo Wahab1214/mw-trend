@@ -14,6 +14,7 @@ import { Modal } from '@/components/ui/modal';
 import { useToast } from '@/components/ui/toast';
 import { formatPKR, formatDate, calculateOrderProfit } from '@/lib/utils';
 import { ORDER_STATUS_CONFIG, COURIER_PARTNERS } from '@/lib/constants';
+import { recordAuditLog } from '@/lib/audit';
 import {
   ArrowLeft,
   Printer,
@@ -96,6 +97,9 @@ export default function OrderDetailPage() {
   const handleStatusChange = (newStatus: OrderStatus) => {
     setCurrentStatus(newStatus);
     setOrder((prev) => (prev ? { ...prev, status: newStatus } : null));
+    if (order) {
+      recordAuditLog('ORDER_STATUS_UPDATE', order.order_number, `Status updated to "${newStatus}"`);
+    }
     toast.success(`Order status changed to "${newStatus}" and audit log recorded.`);
   };
 

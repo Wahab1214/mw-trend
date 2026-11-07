@@ -9,67 +9,24 @@ import { Badge } from '@/components/ui/badge';
 import { Modal } from '@/components/ui/modal';
 import { useToast } from '@/components/ui/toast';
 import { Coupon } from '@/types';
+import { recordAuditLog } from '@/lib/audit';
 import { formatPKR } from '@/lib/utils';
 import { Tag, Plus, Trash2, CheckCircle2 } from 'lucide-react';
 
 export default function AdminCouponsPage() {
   const toast = useToast();
-  const [coupons, setCoupons] = React.useState<Coupon[]>([
-    {
-      id: 'cp-1',
-      code: 'MW10',
-      description: 'Flat 10% discount on all orders',
-      discount_type: 'percentage',
-      discount_value: 10,
-      min_order_value: 1500,
-      max_discount_amount: 500,
-      per_user_limit: 1,
-      used_count: 0,
-      is_active: true,
-    },
-    {
-      id: 'cp-2',
-      code: 'FREESHIP',
-      description: 'Free Express Shipping Nationwide',
-      discount_type: 'free_shipping',
-      discount_value: 250,
-      min_order_value: 2000,
-      per_user_limit: 1,
-      used_count: 0,
-      is_active: true,
-    },
-    {
-      id: 'cp-3',
-      code: 'GOLD300',
-      description: 'Flat Rs. 300 discount on bundles',
-      discount_type: 'fixed',
-      discount_value: 300,
-      min_order_value: 2500,
-      per_user_limit: 1,
-      used_count: 0,
-      is_active: true,
-    },
-    {
-      id: 'cp-4',
-      code: 'WELCOME15',
-      description: '15% First Order discount for new customers',
-      discount_type: 'percentage',
-      discount_value: 15,
-      min_order_value: 1000,
-      per_user_limit: 1,
-      used_count: 0,
-      is_active: true,
-    },
-  ]);
+  const [coupons, setCoupons] = React.useState<Coupon[]>([]);
 
   React.useEffect(() => {
     try {
       const stored = localStorage.getItem('mw_trends_coupons');
       if (stored) {
         setCoupons(JSON.parse(stored));
+      } else {
+        setCoupons([]);
       }
     } catch {
-      // ignore
+      setCoupons([]);
     }
   }, []);
 
@@ -104,6 +61,7 @@ export default function AdminCouponsPage() {
     };
 
     saveCoupons([coupon, ...coupons]);
+    recordAuditLog('COUPON_CREATED', coupon.code, `Created promotional coupon code: ${coupon.code}`);
     setIsModalOpen(false);
     setNewCode('');
     toast.success(`Coupon code "${coupon.code}" created and active!`);
@@ -111,6 +69,7 @@ export default function AdminCouponsPage() {
 
   const handleDelete = (id: string, code: string) => {
     saveCoupons(coupons.filter((c) => c.id !== id));
+    recordAuditLog('COUPON_DELETED', code, `Deleted coupon code: ${code}`);
     toast.info(`Coupon "${code}" deleted.`);
   };
 
@@ -146,7 +105,20 @@ export default function AdminCouponsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {coupons.map((cp) => (
+            {coupons.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} className="py-16 text-center">
+                  <div className="flex flex-col items-center justify-center max-w-sm mx-auto text-center space-y-2">
+                    <Tag className="w-8 h-8 text-gold opacity-80" />
+                    <p className="font-serif font-bold text-sm text-text-primary">No Active Coupon Codes</p>
+                    <p className="text-xs text-text-muted">
+                      Click &quot;New Coupon&quot; to create a discount promo code for your marketing campaigns.
+                    </p>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : (
+              coupons.map((cp) => (
               <TableRow key={cp.id}>
                 <TableCell>
                   <strong className="font-mono text-gold font-bold text-xs sm:text-sm block">
@@ -187,7 +159,7 @@ export default function AdminCouponsPage() {
                   </button>
                 </TableCell>
               </TableRow>
-            ))}
+            )))}
           </TableBody>
         </Table>
       </div>

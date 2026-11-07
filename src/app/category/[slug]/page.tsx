@@ -18,7 +18,20 @@ export default function CategoryDetailPage() {
     notFound();
   }
 
-  const products = INITIAL_PRODUCTS.filter(
+  const [allProducts, setAllProducts] = React.useState<any[]>([]);
+
+  React.useEffect(() => {
+    try {
+      const stored = localStorage.getItem('mw_trends_products');
+      if (stored) {
+        setAllProducts(JSON.parse(stored));
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const products = allProducts.filter(
     (p) => p.category_id === category.id || p.category_name?.toLowerCase() === category.name.toLowerCase()
   );
 

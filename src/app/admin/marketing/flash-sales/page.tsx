@@ -7,16 +7,37 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/toast';
 import { INITIAL_FLASH_SALE } from '@/lib/mock-data';
+import { recordAuditLog } from '@/lib/audit';
 import { Flame, Clock, Plus } from 'lucide-react';
 
 export default function AdminFlashSalesPage() {
   const toast = useToast();
   const [sale, setSale] = React.useState(INITIAL_FLASH_SALE);
-  const [isActive, setIsActive] = React.useState(sale.is_active);
+  const [isActive, setIsActive] = React.useState(false);
+
+  React.useEffect(() => {
+    try {
+      const stored = localStorage.getItem('mw_trends_flash_sale');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setSale(parsed);
+        setIsActive(parsed.is_active || false);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
   const handleToggle = (checked: boolean) => {
     setIsActive(checked);
-    setSale((prev) => ({ ...prev, is_active: checked }));
+    const updated = { ...sale, is_active: checked };
+    setSale(updated);
+    try {
+      localStorage.setItem('mw_trends_flash_sale', JSON.stringify(updated));
+      recordAuditLog('FLASH_SALE_TOGGLED', sale.title, checked ? 'Enabled flash sale' : 'Disabled flash sale');
+    } catch {
+      // ignore
+    }
     toast.success(checked ? 'Flash sale enabled and active on storefront.' : 'Flash sale disabled.');
   };
 

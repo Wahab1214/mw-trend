@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/toast';
 import { INITIAL_STORE_SETTINGS } from '@/lib/mock-data';
+import { recordAuditLog } from '@/lib/audit';
 import { StoreSettings } from '@/types';
 import { Store, ShieldCheck, Truck, Banknote, Globe } from 'lucide-react';
 
@@ -32,6 +33,7 @@ export default function AdminSettingsPage() {
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new Event('mw_settings_updated'));
       }
+      recordAuditLog('SETTINGS_UPDATE', 'Store Settings', `Updated store configuration, payment accounts & shipping limits`);
     } catch {
       // ignore
     }

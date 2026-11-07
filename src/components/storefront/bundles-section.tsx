@@ -12,6 +12,22 @@ import { Gift, Sparkles, Check, ArrowRight } from 'lucide-react';
 export function BundlesSection() {
   const { addItem } = useCart();
   const [addedBundleId, setAddedBundleId] = React.useState<string | null>(null);
+  const [bundles, setBundles] = React.useState<typeof INITIAL_BUNDLES>([]);
+
+  React.useEffect(() => {
+    try {
+      const stored = localStorage.getItem('mw_trends_bundles');
+      if (stored) {
+        setBundles(JSON.parse(stored).filter((b: any) => b.is_active));
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  if (bundles.length === 0) {
+    return null;
+  }
 
   const handleAddBundle = (bundle: typeof INITIAL_BUNDLES[0]) => {
     addItem({
@@ -48,7 +64,7 @@ export function BundlesSection() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {INITIAL_BUNDLES.map((bundle) => {
+        {bundles.map((bundle) => {
           const savings = bundle.compare_at_price - bundle.bundle_price;
           const isAdded = addedBundleId === bundle.id;
 

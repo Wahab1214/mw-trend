@@ -31,17 +31,30 @@ export function Header() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  const [allProducts, setAllProducts] = React.useState<any[]>([]);
+
+  React.useEffect(() => {
+    try {
+      const stored = localStorage.getItem('mw_trends_products');
+      if (stored) {
+        setAllProducts(JSON.parse(stored));
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
   // Filter search results
   const searchResults = React.useMemo(() => {
     if (!searchQuery.trim()) return [];
     const query = searchQuery.toLowerCase();
-    return INITIAL_PRODUCTS.filter(
+    return allProducts.filter(
       (p) =>
         p.title.toLowerCase().includes(query) ||
         p.category_name?.toLowerCase().includes(query) ||
         p.description.toLowerCase().includes(query)
     ).slice(0, 5);
-  }, [searchQuery]);
+  }, [searchQuery, allProducts]);
 
   const navLinks = [
     { label: 'Shop All', href: '/shop' },

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { INITIAL_FLASH_SALE } from '@/lib/mock-data';
 
 export function FlashSaleBanner() {
+  const [activeSale, setActiveSale] = React.useState<typeof INITIAL_FLASH_SALE | null>(null);
   const [timeLeft, setTimeLeft] = React.useState({
     hours: 18,
     minutes: 42,
@@ -14,6 +15,21 @@ export function FlashSaleBanner() {
   });
 
   React.useEffect(() => {
+    try {
+      const stored = localStorage.getItem('mw_trends_flash_sale');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.is_active) {
+          setActiveSale(parsed);
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (!activeSale) return;
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev.seconds > 0) {
@@ -28,7 +44,11 @@ export function FlashSaleBanner() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, []);
+  }, [activeSale]);
+
+  if (!activeSale || !activeSale.is_active) {
+    return null;
+  }
 
   return (
     <div className="bg-gradient-to-r from-[#141005] via-[#1F1707] to-[#141005] border-y border-gold/40 text-text-primary py-5 px-4 select-none relative overflow-hidden">
@@ -46,7 +66,7 @@ export function FlashSaleBanner() {
               <span className="text-xs font-serif font-bold text-gold">UP TO 40% OFF</span>
             </div>
             <h3 className="font-serif font-bold text-sm sm:text-base text-white mt-0.5">
-              {INITIAL_FLASH_SALE.title}
+              {activeSale.title}
             </h3>
           </div>
         </div>
