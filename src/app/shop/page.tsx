@@ -99,7 +99,7 @@ function ShopContent() {
       if (sortBy === 'newest') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       return b.sales_count - a.sales_count; // default best sellers
     });
-  }, [selectedCategory, searchQuery, inStockOnly, onSaleOnly, minPrice, maxPrice, sortBy]);
+  }, [allProducts, selectedCategory, searchQuery, inStockOnly, onSaleOnly, minPrice, maxPrice, sortBy]);
 
   // Paginated items
   const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);

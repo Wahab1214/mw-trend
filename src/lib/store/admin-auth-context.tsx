@@ -67,79 +67,115 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       return { success: false, error: 'Please enter both email and password.' };
     }
 
-    // STRICT OWNER & STAFF AUTHORIZATION CHECK
-    let isAuthorized = ALLOWED_ADMIN_EMAILS.includes(cleanEmail);
-    let assignedRole: 'owner' | 'manager' | 'fulfillment' | 'support' = 'owner';
-    let staffName = cleanEmail === MASTER_OWNER_EMAIL ? 'Wahab (Owner)' : 'Store Owner';
-
-    // Also check if this email is an invited staff member
+    // Attempt API verification first for secure HTTP Set-Cookie
     try {
-      if (typeof window !== 'undefined') {
-        const staffList = localStorage.getItem('mw_staff_members');
-        if (staffList) {
-          const staff = JSON.parse(staffList);
-          const match = staff.find((s: { email?: string; isActive?: boolean; role?: any; name?: string }) => 
-            s.email?.toLowerCase() === cleanEmail && s.isActive !== false
-          );
-          if (match) {
-            isAuthorized = true;
-            assignedRole = match.role || 'manager';
-            staffName = match.name || cleanEmail;
+      const response = await fetch('/api/admin/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: cleanEmail, password: cleanPass, action: 'login' }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        setIsLoading(false);
+        return { success: false, error: data.error || 'Authentication failed. Please verify credentials.' };
+      }
+
+      const loggedUser: AdminUser = data.user;
+      setUser(loggedUser);
+
+      // Save to localStorage & client cookie for redundancy
+      try {
+        localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(loggedUser));
+        document.cookie = `mw_admin_session=${encodeURIComponent(JSON.stringify(loggedUser))}; path=/; max-age=604800; SameSite=Lax; Secure;`;
+      } catch {
+        // Ignored
+      }
+
+      setIsLoading(false);
+      return { success: true };
+    } catch {
+      // Fallback to local client verification if API is temporarily unreachable
+      let isAuthorized = ALLOWED_ADMIN_EMAILS.includes(cleanEmail);
+      let assignedRole: 'owner' | 'manager' | 'fulfillment' | 'support' = 'owner';
+      let staffName = cleanEmail === MASTER_OWNER_EMAIL ? 'Wahab (Owner)' : 'Store Owner';
+
+      try {
+        if (typeof window !== 'undefined') {
+          const staffList = localStorage.getItem('mw_staff_members');
+          if (staffList) {
+            const staff = JSON.parse(staffList);
+            const match = staff.find((s: { email?: string; isActive?: boolean; role?: any; name?: string }) => 
+              s.email?.toLowerCase() === cleanEmail && s.isActive !== false
+            );
+            if (match) {
+              isAuthorized = true;
+              assignedRole = match.role || 'manager';
+              staffName = match.name || cleanEmail;
+            }
           }
         }
+      } catch {
+        // Ignored
       }
-    } catch {
-      // Ignored
-    }
 
-    if (!isAuthorized) {
-      setIsLoading(false);
-      return {
-        success: false,
-        error: `Access Denied: "${cleanEmail}" is not authorized. Only the verified store owner (${MASTER_OWNER_EMAIL}) and authorized team members can access Admin Studio.`,
+      if (!isAuthorized) {
+        setIsLoading(false);
+        return {
+          success: false,
+          error: `Access Denied: "${cleanEmail}" is not authorized. Only the verified store owner (${MASTER_OWNER_EMAIL}) and authorized team members can access Admin Studio.`,
+        };
+      }
+
+      const isCorrectPass = cleanPass === 'MWTrends@2026' || cleanPass.length >= 6;
+      if (!isCorrectPass) {
+        setIsLoading(false);
+        return {
+          success: false,
+          error: 'Invalid password. Password must be at least 6 characters.',
+        };
+      }
+
+      const fallbackUser: AdminUser = {
+        id: cleanEmail === MASTER_OWNER_EMAIL ? 'usr_owner_master' : 'usr_staff_' + Date.now(),
+        email: cleanEmail,
+        name: staffName,
+        role: assignedRole,
       };
-    }
 
-    // Password validation (minimum 6 characters or standard master pass)
-    const isCorrectPass = cleanPass === 'MWTrends@2026' || cleanPass.length >= 6;
+      setUser(fallbackUser);
+      try {
+        localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(fallbackUser));
+        document.cookie = `mw_admin_session=${encodeURIComponent(JSON.stringify(fallbackUser))}; path=/; max-age=604800; SameSite=Lax; Secure;`;
+      } catch {
+        // Ignored
+      }
 
-    if (!isCorrectPass) {
       setIsLoading(false);
-      return {
-        success: false,
-        error: 'Invalid password. Password must be at least 6 characters.',
-      };
+      return { success: true };
     }
-
-    const loggedUser: AdminUser = {
-      id: cleanEmail === MASTER_OWNER_EMAIL ? 'usr_owner_master' : 'usr_staff_' + Date.now(),
-      email: cleanEmail,
-      name: staffName,
-      role: assignedRole,
-    };
-
-    setUser(loggedUser);
-    try {
-      localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(loggedUser));
-      // Set HTTP cookie for Next.js edge middleware protection (7 days session)
-      document.cookie = `mw_admin_session=${encodeURIComponent(JSON.stringify(loggedUser))}; path=/; max-age=604800; SameSite=Lax`;
-    } catch {
-      // Ignored
-    }
-
-    setIsLoading(false);
-    return { success: true };
   };
 
   const logout = () => {
     setUser(null);
     try {
+      fetch('/api/admin/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'logout' }),
+      }).catch(() => {});
+
       localStorage.removeItem(ADMIN_STORAGE_KEY);
-      document.cookie = 'mw_admin_session=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+      document.cookie = 'mw_admin_session=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; Secure;';
     } catch {
       // Ignored
     }
-    router.push('/admin/login');
+    if (typeof window !== 'undefined') {
+      window.location.href = '/admin/login';
+    } else {
+      router.push('/admin/login');
+    }
   };
 
   return (

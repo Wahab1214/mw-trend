@@ -3,6 +3,7 @@
 import * as React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Drawer } from '@/components/ui/drawer';
 import { useCart } from '@/lib/store/cart-context';
 import { Button } from '@/components/ui/button';
@@ -47,10 +48,16 @@ export function CartDrawer() {
     if (success) setCouponCodeInput('');
   };
 
+  const pathname = usePathname();
+
   const freeShippingProgress = Math.min(
     100,
     Math.round(((freeShippingThreshold - amountNeededForFreeShipping) / freeShippingThreshold) * 100)
   );
+
+  if (pathname?.startsWith('/admin')) {
+    return null;
+  }
 
   return (
     <Drawer isOpen={isOpen} onClose={closeCart} title="Your Shopping Bag" side="right">

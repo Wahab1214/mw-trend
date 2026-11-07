@@ -53,6 +53,11 @@ export function Header() {
     { label: 'Track Order', href: '/track-order' },
   ];
 
+  // Hide storefront header completely on admin studio and login pages
+  if (pathname?.startsWith('/admin')) {
+    return null;
+  }
+
   return (
     <>
       <header

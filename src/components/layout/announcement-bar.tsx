@@ -2,12 +2,14 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Sparkles, Truck, X } from 'lucide-react';
 
 export function AnnouncementBar() {
+  const pathname = usePathname();
   const [isVisible, setIsVisible] = React.useState(true);
 
-  if (!isVisible) return null;
+  if (!isVisible || pathname?.startsWith('/admin')) return null;
 
   return (
     <div className="relative bg-[#121212] dark:bg-[#070707] text-[#FAF8F3] border-b border-gold/20 py-2 px-4 text-xs font-medium z-40 transition-all select-none">

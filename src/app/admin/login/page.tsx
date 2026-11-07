@@ -17,12 +17,24 @@ export default function AdminLoginPage() {
   const [error, setError] = React.useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
-  // If already logged in, redirect to admin dashboard
+  // Helper to extract redirect URL safely
+  const getRedirectUrl = () => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const r = params.get('redirect');
+      if (r && r.startsWith('/admin') && r !== '/admin/login') {
+        return r;
+      }
+    }
+    return '/admin';
+  };
+
+  // If already logged in, redirect to admin dashboard with full reload
   React.useEffect(() => {
     if (user) {
-      router.push('/admin');
+      window.location.href = getRedirectUrl();
     }
-  }, [user, router]);
+  }, [user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,13 +44,13 @@ export default function AdminLoginPage() {
     try {
       const res = await login(email, password);
       if (res.success) {
-        router.push('/admin');
+        window.location.href = getRedirectUrl();
       } else {
         setError(res.error || 'Authentication failed. Please verify credentials.');
+        setIsSubmitting(false);
       }
     } catch {
       setError('An unexpected error occurred during login.');
-    } finally {
       setIsSubmitting(false);
     }
   };

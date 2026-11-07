@@ -3,9 +3,17 @@
 import * as React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { usePathname } from 'next/navigation';
 import { Phone, Mail, MapPin, Instagram, Facebook, ShieldCheck, Heart, Sparkles } from 'lucide-react';
 
 export function Footer() {
+  const pathname = usePathname();
+
+  // Hide storefront footer on admin studio and login pages
+  if (pathname?.startsWith('/admin')) {
+    return null;
+  }
+
   return (
     <footer className="bg-surface border-t border-border mt-16 pt-12 pb-24 lg:pb-12 text-xs text-text-secondary select-none">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
