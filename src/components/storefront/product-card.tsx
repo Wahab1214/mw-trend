@@ -64,6 +64,7 @@ export function ProductCard({ product, className, priority = false }: ProductCar
               src={primaryImage.image_url}
               alt={primaryImage.alt_text || product.title}
               fill
+              unoptimized={primaryImage.image_url.startsWith('data:')}
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
               priority={priority}
               className="object-cover transition-transform duration-500 group-hover:scale-105"

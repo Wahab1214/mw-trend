@@ -13,7 +13,8 @@ import { useToast } from '@/components/ui/toast';
 import { slugify } from '@/lib/utils';
 import { INITIAL_CATEGORIES, INITIAL_PRODUCTS } from '@/lib/mock-data';
 import { recordAuditLog } from '@/lib/audit';
-import { PaymentMethod, MockupType } from '@/types';
+import { PaymentMethod, MockupType, ProductImage } from '@/types';
+import { ProductImageUploader } from '@/components/admin/product-image-uploader';
 import {
   ArrowLeft,
   Sparkles,
@@ -33,10 +34,53 @@ export default function NewProductPage() {
   const [title, setTitle] = React.useState('');
   const [slug, setSlug] = React.useState('');
   const [sku, setSku] = React.useState('');
+  const [categoriesList, setCategoriesList] = React.useState(INITIAL_CATEGORIES);
   const [category, setCategory] = React.useState(INITIAL_CATEGORIES[0]?.id || '');
+  const [showNewCategoryInput, setShowNewCategoryInput] = React.useState(false);
+  const [customCategoryName, setCustomCategoryName] = React.useState('');
   const [shortDesc, setShortDesc] = React.useState('');
   const [description, setDescription] = React.useState('');
-  const [imageUrl, setImageUrl] = React.useState('');
+  const [images, setImages] = React.useState<ProductImage[]>([]);
+
+  // Load any custom categories from localStorage
+  React.useEffect(() => {
+    try {
+      const stored = localStorage.getItem('mw_trends_categories');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setCategoriesList(parsed);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const handleCreateCategory = () => {
+    if (!customCategoryName.trim()) return;
+    const cleanName = customCategoryName.trim();
+    const newCat = {
+      id: `cat_${Date.now()}`,
+      name: cleanName,
+      slug: slugify(cleanName),
+      description: `Custom personalized items under ${cleanName}`,
+      image_url: '',
+      sort_order: categoriesList.length + 1,
+      is_active: true,
+      is_featured: false,
+      product_count: 0,
+    };
+    const updated = [...categoriesList, newCat];
+    setCategoriesList(updated);
+    setCategory(newCat.id);
+    try {
+      localStorage.setItem('mw_trends_categories', JSON.stringify(updated));
+    } catch {
+      // ignore
+    }
+    setCustomCategoryName('');
+    setShowNewCategoryInput(false);
+    toast.success(`Category "${newCat.name}" created and selected!`);
+  };
 
   // Pricing & Profit
   const [baseCostPrice, setBaseCostPrice] = React.useState<number>(400);
@@ -98,6 +142,8 @@ export default function NewProductPage() {
     }
 
     const finalSlug = slug.trim() || slugify(title);
+    const selectedCatObj = categoriesList.find((c) => c.id === category);
+
     const newProduct: any = {
       id: `prod_${Date.now()}`,
       title: title.trim(),
@@ -106,6 +152,7 @@ export default function NewProductPage() {
       short_description: shortDesc,
       description: description,
       category_id: category,
+      category_name: selectedCatObj ? selectedCatObj.name : 'Custom Gifts',
       base_cost_price: Number(baseCostPrice) || 0,
       regular_price: Number(regularPrice) || 0,
       sale_price: salePrice ? Number(salePrice) : undefined,
@@ -120,28 +167,13 @@ export default function NewProductPage() {
       weight_kg: 0.5,
       has_customization: hasCustomization,
       mockup_type: mockupType,
-      images: imageUrl.trim()
-        ? [
-            {
-              id: `img_${Date.now()}`,
-              product_id: `prod_${Date.now()}`,
-              image_url: imageUrl.trim(),
-              sort_order: 1,
-              is_primary: true,
-            },
-          ]
+      images: images.length > 0
+        ? images
         : [
             {
               id: `img_${Date.now()}`,
               product_id: `prod_${Date.now()}`,
-              image_url:
-                mockupType === 'pen'
-                  ? 'https://images.unsplash.com/photo-1583485088034-697b5bc54ccd?auto=format&fit=crop&w=800&q=80'
-                  : mockupType === 'tshirt'
-                  ? 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=800&q=80'
-                  : mockupType === 'card'
-                  ? 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&w=800&q=80'
-                  : 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=800&q=80',
+              image_url: '/brand/monogram.svg',
               sort_order: 1,
               is_primary: true,
             },
@@ -222,12 +254,47 @@ export default function NewProductPage() {
               />
             </div>
 
-            <Select
-              label="Product Category"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              options={INITIAL_CATEGORIES.map((c) => ({ value: c.id, label: c.name }))}
-            />
+            {/* Category with quick add button */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-semibold text-[#A8A29A] uppercase tracking-wider">
+                  Product Category
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowNewCategoryInput(!showNewCategoryInput)}
+                  className="text-xs text-gold hover:underline font-medium"
+                >
+                  {showNewCategoryInput ? 'Cancel' : '+ New Category'}
+                </button>
+              </div>
+
+              {showNewCategoryInput ? (
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Enter new category name (e.g. Wallets, Keychains)..."
+                    value={customCategoryName}
+                    onChange={(e) => setCustomCategoryName(e.target.value)}
+                    className="h-10 text-xs"
+                  />
+                  <Button
+                    type="button"
+                    variant="gold"
+                    size="sm"
+                    onClick={handleCreateCategory}
+                    className="shrink-0 text-xs font-bold"
+                  >
+                    Add
+                  </Button>
+                </div>
+              ) : (
+                <Select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  options={categoriesList.map((c) => ({ value: c.id, label: c.name }))}
+                />
+              )}
+            </div>
 
             <Textarea
               label="Short Description"
@@ -245,12 +312,11 @@ export default function NewProductPage() {
               onChange={(e) => setDescription(e.target.value)}
             />
 
-            <Input
-              label="Product Image URL (Unsplash or Supabase Storage)"
-              placeholder="https://images.unsplash.com/photo-..."
-              value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
-              helperText="Paste direct high-resolution image URL."
+            {/* Direct Multi-Image File Uploader (Up to 6 images) */}
+            <ProductImageUploader
+              images={images}
+              onChange={setImages}
+              maxImages={6}
             />
           </div>
 

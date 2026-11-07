@@ -239,6 +239,7 @@ export default function AdminProductsPage() {
                           src={prod.images[0].image_url}
                           alt={prod.title}
                           fill
+                          unoptimized={prod.images[0].image_url?.startsWith('data:')}
                           className="object-cover"
                         />
                       ) : (

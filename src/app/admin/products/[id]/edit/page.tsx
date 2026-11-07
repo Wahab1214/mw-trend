@@ -10,8 +10,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/components/ui/toast';
 import { INITIAL_CATEGORIES } from '@/lib/mock-data';
-import { Product, PaymentMethod, MockupType } from '@/types';
+import { Product, PaymentMethod, MockupType, ProductImage } from '@/types';
 import { recordAuditLog } from '@/lib/audit';
+import { slugify } from '@/lib/utils';
+import { ProductImageUploader } from '@/components/admin/product-image-uploader';
 import { ArrowLeft, AlertCircle } from 'lucide-react';
 
 export default function EditProductPage() {
@@ -26,8 +28,12 @@ export default function EditProductPage() {
   const [title, setTitle] = React.useState('');
   const [slug, setSlug] = React.useState('');
   const [sku, setSku] = React.useState('');
+  const [categoriesList, setCategoriesList] = React.useState(INITIAL_CATEGORIES);
   const [category, setCategory] = React.useState('');
+  const [showNewCategoryInput, setShowNewCategoryInput] = React.useState(false);
+  const [customCategoryName, setCustomCategoryName] = React.useState('');
   const [description, setDescription] = React.useState('');
+  const [images, setImages] = React.useState<ProductImage[]>([]);
   const [baseCostPrice, setBaseCostPrice] = React.useState<number>(0);
   const [regularPrice, setRegularPrice] = React.useState<number>(0);
   const [salePrice, setSalePrice] = React.useState<number>(0);
@@ -41,6 +47,11 @@ export default function EditProductPage() {
 
   React.useEffect(() => {
     try {
+      const storedCategories = localStorage.getItem('mw_trends_categories');
+      if (storedCategories) {
+        setCategoriesList(JSON.parse(storedCategories));
+      }
+
       const stored = localStorage.getItem('mw_trends_products');
       if (stored) {
         const list: Product[] = JSON.parse(stored);
@@ -52,6 +63,7 @@ export default function EditProductPage() {
           setSku(match.sku || '');
           setCategory(match.category_id || INITIAL_CATEGORIES[0]?.id || '');
           setDescription(match.description);
+          setImages(match.images || []);
           setBaseCostPrice(match.base_cost_price);
           setRegularPrice(match.regular_price);
           setSalePrice(match.sale_price || 0);
@@ -71,6 +83,33 @@ export default function EditProductPage() {
     }
   }, [productId]);
 
+  const handleCreateCategory = () => {
+    if (!customCategoryName.trim()) return;
+    const cleanName = customCategoryName.trim();
+    const newCat = {
+      id: `cat_${Date.now()}`,
+      name: cleanName,
+      slug: slugify(cleanName),
+      description: `Custom personalized items under ${cleanName}`,
+      image_url: '',
+      sort_order: categoriesList.length + 1,
+      is_active: true,
+      is_featured: false,
+      product_count: 0,
+    };
+    const updated = [...categoriesList, newCat];
+    setCategoriesList(updated);
+    setCategory(newCat.id);
+    try {
+      localStorage.setItem('mw_trends_categories', JSON.stringify(updated));
+    } catch {
+      // ignore
+    }
+    setCustomCategoryName('');
+    setShowNewCategoryInput(false);
+    toast.success(`Category "${newCat.name}" added and selected!`);
+  };
+
   const togglePaymentMethod = (method: PaymentMethod) => {
     setAllowedMethods((prev) =>
       prev.includes(method) ? prev.filter((m) => m !== method) : [...prev, method]
@@ -86,7 +125,7 @@ export default function EditProductPage() {
       const list: Product[] = stored ? JSON.parse(stored) : [];
       const updatedList = list.map((p) => {
         if (p.id === productId) {
-          const selectedCatObj = INITIAL_CATEGORIES.find((c) => c.id === category);
+          const selectedCatObj = categoriesList.find((c) => c.id === category);
           return {
             ...p,
             title,
@@ -95,7 +134,8 @@ export default function EditProductPage() {
             category_id: category,
             category_name: selectedCatObj ? selectedCatObj.name : p.category_name,
             description,
-            base_cost_price: baseCostPrice,
+            images: images.length > 0 ? images : p.images,
+            baseCostPrice: baseCostPrice,
             regular_price: regularPrice,
             sale_price: salePrice || undefined,
             stock_quantity: stock,
@@ -177,14 +217,56 @@ export default function EditProductPage() {
               <Input label="SKU" value={sku} onChange={(e) => setSku(e.target.value)} />
             </div>
 
-            <Select
-              label="Category"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              options={INITIAL_CATEGORIES.map((c) => ({ value: c.id, label: c.name }))}
-            />
+            {/* Category selection */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-semibold text-[#A8A29A] uppercase tracking-wider">
+                  Product Category
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowNewCategoryInput(!showNewCategoryInput)}
+                  className="text-xs text-gold hover:underline font-medium"
+                >
+                  {showNewCategoryInput ? 'Cancel' : '+ New Category'}
+                </button>
+              </div>
+
+              {showNewCategoryInput ? (
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Enter new category name..."
+                    value={customCategoryName}
+                    onChange={(e) => setCustomCategoryName(e.target.value)}
+                    className="h-10 text-xs"
+                  />
+                  <Button
+                    type="button"
+                    variant="gold"
+                    size="sm"
+                    onClick={handleCreateCategory}
+                    className="shrink-0 text-xs font-bold"
+                  >
+                    Add
+                  </Button>
+                </div>
+              ) : (
+                <Select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  options={categoriesList.map((c) => ({ value: c.id, label: c.name }))}
+                />
+              )}
+            </div>
 
             <Textarea label="Description" value={description} rows={4} onChange={(e) => setDescription(e.target.value)} />
+
+            {/* Product Photos Upload (Up to 6 images) */}
+            <ProductImageUploader
+              images={images}
+              onChange={setImages}
+              maxImages={6}
+            />
           </div>
 
           <div className="rounded-2xl bg-surface border border-border p-6 space-y-4 shadow-sm">

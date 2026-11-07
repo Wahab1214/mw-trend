@@ -216,6 +216,7 @@ export default function ProductDetailPage() {
                     src={product.images[activeImageIndex].image_url}
                     alt={product.images[activeImageIndex].alt_text || product.title}
                     fill
+                    unoptimized={product.images[activeImageIndex].image_url?.startsWith('data:')}
                     priority
                     sizes="(max-width: 1024px) 100vw, 60vw"
                     className="object-cover transition-all duration-300"
@@ -246,6 +247,7 @@ export default function ProductDetailPage() {
                       src={img.image_url}
                       alt={img.alt_text || `Thumbnail ${idx + 1}`}
                       fill
+                      unoptimized={img.image_url?.startsWith('data:')}
                       className="object-cover"
                     />
                   </button>
