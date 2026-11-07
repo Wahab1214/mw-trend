@@ -4,7 +4,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { Search, ShoppingBag, Heart, User, Menu, X, Compass, PackageCheck } from 'lucide-react';
+import { Search, ShoppingBag, Heart, User, Menu, X, Compass, PackageCheck, ShieldCheck } from 'lucide-react';
 import { useCart } from '@/lib/store/cart-context';
 import { useWishlist } from '@/lib/store/wishlist-context';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
@@ -32,12 +32,23 @@ export function Header() {
   }, []);
 
   const [allProducts, setAllProducts] = React.useState<any[]>([]);
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = React.useState(false);
 
   React.useEffect(() => {
     try {
       const stored = localStorage.getItem('mw_trends_products');
       if (stored) {
         setAllProducts(JSON.parse(stored));
+      }
+    } catch {
+      // ignore
+    }
+
+    try {
+      const match = typeof document !== 'undefined' ? document.cookie.match(/mw_admin_session=([^;]+)/) : null;
+      const storedUser = typeof window !== 'undefined' ? localStorage.getItem('mw_admin_auth_user') : null;
+      if (match || storedUser) {
+        setIsAdminLoggedIn(true);
       }
     } catch {
       // ignore
@@ -169,12 +180,24 @@ export function Header() {
                 )}
               </Link>
 
-              {/* Account / Admin Portal */}
+              {/* If Store Owner / Admin is logged in, show quick Owner Studio pill */}
+              {isAdminLoggedIn && (
+                <Link
+                  href="/admin"
+                  className="hidden md:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gold/15 text-gold border border-gold/40 hover:bg-gold/25 transition-all text-xs font-bold shadow-sm"
+                  title="Store Owner Admin Studio"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>Admin Studio</span>
+                </Link>
+              )}
+
+              {/* Customer Account / Order Tracking */}
               <Link
-                href="/admin"
+                href="/track-order"
                 className="p-2 rounded-lg text-text-secondary hover:text-gold hover:bg-elevated transition-colors hidden sm:flex"
-                aria-label="Admin Portal"
-                title="Admin Dashboard"
+                aria-label="Track Your Order"
+                title="Track Your Order"
               >
                 <User className="w-5 h-5" />
               </Link>
@@ -215,13 +238,32 @@ export function Header() {
             ))}
             <div className="pt-2 border-t border-border/60 flex items-center justify-between text-xs text-text-muted px-3">
               <Link
-                href="/admin"
+                href="/track-order"
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="text-gold font-semibold flex items-center gap-1.5 py-1"
+                className="text-text-secondary hover:text-gold font-medium flex items-center gap-1.5 py-1"
               >
-                <User className="w-4 h-4" />
-                Staff Admin Portal
+                <PackageCheck className="w-4 h-4" />
+                Track Your Order
               </Link>
+
+              {isAdminLoggedIn ? (
+                <Link
+                  href="/admin"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="text-gold font-bold flex items-center gap-1.5 py-1"
+                >
+                  <ShieldCheck className="w-4 h-4" />
+                  Admin Studio &rarr;
+                </Link>
+              ) : (
+                <Link
+                  href="/admin/login"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="text-text-muted hover:text-gold flex items-center gap-1 py-1"
+                >
+                  Staff Portal
+                </Link>
+              )}
             </div>
           </div>
         )}
