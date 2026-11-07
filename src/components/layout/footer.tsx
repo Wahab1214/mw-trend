@@ -186,15 +186,9 @@ export function Footer() {
             <span className="px-2 py-0.5 rounded bg-elevated font-semibold text-text-primary border border-border">Visa &amp; Mastercard</span>
           </div>
 
-          <div className="flex flex-wrap items-center justify-center sm:justify-end gap-3 text-[11px] text-text-muted">
-            <p>
-              &copy; {new Date().getFullYear()} MW Trends. All rights reserved. Crafted with precision in Pakistan.
-            </p>
-            <span>•</span>
-            <Link href="/admin/login" className="hover:text-gold transition-colors font-medium">
-              Staff Portal
-            </Link>
-          </div>
+          <p className="text-text-muted text-[11px] text-center sm:text-right">
+            &copy; {new Date().getFullYear()} MW Trends. All rights reserved. Crafted with precision in Pakistan.
+          </p>
         </div>
       </div>
     </footer>
