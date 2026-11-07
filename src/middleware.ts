@@ -16,19 +16,6 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // If already logged in and visiting /admin/login, redirect into admin dashboard
-  if (pathname === '/admin/login') {
-    const adminSession = request.cookies.get('mw_admin_session');
-    if (adminSession && adminSession.value) {
-      const redirectParam = request.nextUrl.searchParams.get('redirect');
-      const target =
-        redirectParam && redirectParam.startsWith('/admin') && redirectParam !== '/admin/login'
-          ? redirectParam
-          : '/admin';
-      return NextResponse.redirect(new URL(target, request.url));
-    }
-  }
-
   return NextResponse.next();
 }
 

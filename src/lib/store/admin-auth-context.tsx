@@ -34,23 +34,21 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 
   React.useEffect(() => {
     try {
-      const stored = localStorage.getItem(ADMIN_STORAGE_KEY);
+      // 1. Wipe out any lingering permanent storage
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(ADMIN_STORAGE_KEY);
+        localStorage.removeItem('mw_admin_session');
+      }
+
+      // 2. Only check sessionStorage for active tab session
+      const stored = typeof window !== 'undefined' ? sessionStorage.getItem(ADMIN_STORAGE_KEY) : null;
       if (stored) {
         setUser(JSON.parse(stored));
       } else {
-        // Fallback to cookie check if available
-        const match = typeof document !== 'undefined' ? document.cookie.match(/mw_admin_session=([^;]+)/) : null;
-        if (match) {
-          try {
-            const cookieUser = JSON.parse(decodeURIComponent(match[1]));
-            setUser(cookieUser);
-          } catch {
-            // Ignored
-          }
-        }
+        setUser(null);
       }
     } catch {
-      // Local storage unreadable or SSR
+      setUser(null);
     } finally {
       setIsLoading(false);
     }
@@ -85,10 +83,10 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       const loggedUser: AdminUser = data.user;
       setUser(loggedUser);
 
-      // Save to localStorage & client cookie for redundancy
+      // Save to sessionStorage (active tab session only) & session cookie (no max-age)
       try {
-        localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(loggedUser));
-        document.cookie = `mw_admin_session=${encodeURIComponent(JSON.stringify(loggedUser))}; path=/; max-age=604800; SameSite=Lax; Secure;`;
+        sessionStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(loggedUser));
+        document.cookie = `mw_admin_session=${encodeURIComponent(JSON.stringify(loggedUser))}; path=/; SameSite=Lax; Secure;`;
       } catch {
         // Ignored
       }
@@ -146,8 +144,8 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 
       setUser(fallbackUser);
       try {
-        localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(fallbackUser));
-        document.cookie = `mw_admin_session=${encodeURIComponent(JSON.stringify(fallbackUser))}; path=/; max-age=604800; SameSite=Lax; Secure;`;
+        sessionStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(fallbackUser));
+        document.cookie = `mw_admin_session=${encodeURIComponent(JSON.stringify(fallbackUser))}; path=/; SameSite=Lax; Secure;`;
       } catch {
         // Ignored
       }
@@ -166,7 +164,9 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ action: 'logout' }),
       }).catch(() => {});
 
+      sessionStorage.removeItem(ADMIN_STORAGE_KEY);
       localStorage.removeItem(ADMIN_STORAGE_KEY);
+      localStorage.removeItem('mw_admin_session');
       document.cookie = 'mw_admin_session=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; Secure;';
     } catch {
       // Ignored

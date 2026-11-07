@@ -73,10 +73,9 @@ export async function POST(request: NextRequest) {
       message: 'Authentication successful',
     });
 
-    // Set secure session cookie
+    // Set secure in-memory session cookie (no maxAge = expires on session end)
     response.cookies.set('mw_admin_session', encodeURIComponent(JSON.stringify(userPayload)), {
       path: '/',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
       sameSite: 'lax',
       secure: process.env.NODE_ENV === 'production',
       httpOnly: false, // Accessible by both middleware and client if needed

@@ -29,12 +29,19 @@ export default function AdminLoginPage() {
     return '/admin';
   };
 
-  // If already logged in, redirect to admin dashboard with full reload
+  // On landing on the login page, always enforce a fresh login state
   React.useEffect(() => {
-    if (user) {
-      window.location.href = getRedirectUrl();
+    try {
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('mw_admin_auth_user');
+        localStorage.removeItem('mw_admin_auth_user');
+        localStorage.removeItem('mw_admin_session');
+        document.cookie = 'mw_admin_session=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; Secure;';
+      }
+    } catch {
+      // Ignored
     }
-  }, [user]);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
