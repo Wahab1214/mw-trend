@@ -25,38 +25,36 @@ export default function AdminTeamPage() {
   const toast = useToast();
   const [staff, setStaff] = React.useState<StaffMember[]>([
     {
-      id: 'staff-1',
-      name: 'M. W. (Studio Founder)',
-      email: 'owner@mwtrends.pk',
+      id: 'staff-owner-master',
+      name: 'Wahab (Store Owner)',
+      email: 'wmofficial11@gmail.com',
       role: 'owner',
       isActive: true,
-      lastActive: 'Just now',
-    },
-    {
-      id: 'staff-2',
-      name: 'Tariq Mehmood',
-      email: 'tariq.admin@mwtrends.pk',
-      role: 'admin',
-      isActive: true,
-      lastActive: '25 mins ago',
-    },
-    {
-      id: 'staff-3',
-      name: 'Bilal Khan',
-      email: 'bilal.dispatch@mwtrends.pk',
-      role: 'order_handler',
-      isActive: true,
-      lastActive: '1 hour ago',
-    },
-    {
-      id: 'staff-4',
-      name: 'Zainab Ali',
-      email: 'zainab.content@mwtrends.pk',
-      role: 'editor',
-      isActive: true,
-      lastActive: 'Yesterday',
+      lastActive: 'Active Now',
     },
   ]);
+
+  React.useEffect(() => {
+    try {
+      const stored = localStorage.getItem('mw_staff_members');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setStaff([
+          {
+            id: 'staff-owner-master',
+            name: 'Wahab (Store Owner)',
+            email: 'wmofficial11@gmail.com',
+            role: 'owner',
+            isActive: true,
+            lastActive: 'Active Now',
+          },
+          ...parsed,
+        ]);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
   const [isInviteModalOpen, setIsInviteModalOpen] = React.useState(false);
   const [inviteEmail, setInviteEmail] = React.useState('');
@@ -69,18 +67,28 @@ export default function AdminTeamPage() {
 
     const newStaff: StaffMember = {
       id: `staff_${Date.now()}`,
-      name: inviteName,
-      email: inviteEmail,
+      name: inviteName.trim(),
+      email: inviteEmail.trim().toLowerCase(),
       role: inviteRole,
       isActive: true,
-      lastActive: 'Invited',
+      lastActive: 'Authorized',
     };
 
-    setStaff((prev) => [...prev, newStaff]);
+    setStaff((prev) => {
+      const updated = [...prev, newStaff];
+      try {
+        const nonOwner = updated.filter((s) => s.id !== 'staff-owner-master');
+        localStorage.setItem('mw_staff_members', JSON.stringify(nonOwner));
+      } catch {
+        // ignore
+      }
+      return updated;
+    });
+
     setIsInviteModalOpen(false);
     setInviteEmail('');
     setInviteName('');
-    toast.success(`Invitation email dispatched to ${inviteEmail}!`);
+    toast.success(`Staff authorization created for ${inviteEmail}! They can now log in with their email.`);
   };
 
   const permissionMatrix = [

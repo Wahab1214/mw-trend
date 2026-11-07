@@ -54,15 +54,6 @@ function TrackOrderContent() {
       // ignore
     }
 
-    // Fallback to sample mock orders
-    if (!foundOrder) {
-      foundOrder = INITIAL_ORDERS.find(
-        (o) =>
-          o.order_number.toUpperCase() === cleanNum ||
-          (cleanPh && o.customer_phone.includes(cleanPh))
-      );
-    }
-
     if (foundOrder) {
       setSearchedOrder(foundOrder);
     } else {

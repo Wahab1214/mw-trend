@@ -14,9 +14,28 @@ export default function AdminSettingsPage() {
   const toast = useToast();
   const [settings, setSettings] = React.useState<StoreSettings>(INITIAL_STORE_SETTINGS);
 
+  React.useEffect(() => {
+    try {
+      const stored = localStorage.getItem('mw_trends_store_settings');
+      if (stored) {
+        setSettings(JSON.parse(stored));
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success('Store configuration and payment credentials updated successfully!');
+    try {
+      localStorage.setItem('mw_trends_store_settings', JSON.stringify(settings));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('mw_settings_updated'));
+      }
+    } catch {
+      // ignore
+    }
+    toast.success('Store configuration and payment credentials saved successfully!');
   };
 
   return (

@@ -11,8 +11,8 @@ export default function AdminLoginPage() {
   const router = useRouter();
   const { user, login } = useAdminAuth();
 
-  const [email, setEmail] = React.useState('wmofficial11@gmail.com');
-  const [password, setPassword] = React.useState('MWTrends@2026');
+  const [email, setEmail] = React.useState('');
+  const [password, setPassword] = React.useState('');
   const [showPassword, setShowPassword] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -41,12 +41,6 @@ export default function AdminLoginPage() {
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const handleQuickFill = () => {
-    setEmail('wmofficial11@gmail.com');
-    setPassword('MWTrends@2026');
-    setError(null);
   };
 
   return (
@@ -93,24 +87,6 @@ export default function AdminLoginPage() {
             </p>
           </div>
 
-          {/* Quick-fill Helper Banner */}
-          <div className="mb-6 p-3 rounded-xl bg-gold/10 border border-gold/25 flex items-start gap-2.5">
-            <CheckCircle2 className="w-4 h-4 text-gold shrink-0 mt-0.5" />
-            <div className="text-xs flex-1">
-              <p className="font-semibold text-gold">Master Store Owner:</p>
-              <p className="text-[#D4AF37] font-mono text-[11px] mt-0.5">
-                wmofficial11@gmail.com
-              </p>
-              <button
-                type="button"
-                onClick={handleQuickFill}
-                className="mt-1.5 inline-flex items-center text-[10px] uppercase font-bold tracking-wider text-black bg-gold px-2 py-0.5 rounded hover:bg-gold-light transition-colors"
-              >
-                Auto-Fill Owner
-              </button>
-            </div>
-          </div>
-
           {/* Error Message */}
           {error && (
             <div className="mb-5 p-3 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center gap-2 text-xs text-red-400 animate-in fade-in">
@@ -132,7 +108,7 @@ export default function AdminLoginPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="owner@mwtrends.pk"
+                  placeholder="admin@mwtrends.pk"
                   className="w-full bg-[#181818] border border-[#2E2E2E] rounded-xl pl-10 pr-4 py-2.5 text-sm text-[#F5F1E8] placeholder:text-[#555] focus:outline-none focus:border-gold focus:ring-1 focus:ring-gold transition-colors"
                 />
               </div>

@@ -11,7 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/toast';
 import { slugify } from '@/lib/utils';
-import { INITIAL_CATEGORIES } from '@/lib/mock-data';
+import { INITIAL_CATEGORIES, INITIAL_PRODUCTS } from '@/lib/mock-data';
 import { PaymentMethod, MockupType } from '@/types';
 import {
   ArrowLeft,
@@ -96,7 +96,72 @@ export default function NewProductPage() {
       return;
     }
 
-    toast.success(`Product "${title}" created successfully!`, 'Catalog Updated');
+    const finalSlug = slug.trim() || slugify(title);
+    const newProduct: any = {
+      id: `prod_${Date.now()}`,
+      title: title.trim(),
+      slug: finalSlug,
+      sku: sku.trim() || `MW-${Date.now().toString().slice(-6)}`,
+      short_description: shortDesc,
+      description: description,
+      category_id: category,
+      base_cost_price: Number(baseCostPrice) || 0,
+      regular_price: Number(regularPrice) || 0,
+      sale_price: salePrice ? Number(salePrice) : undefined,
+      stock_quantity: Number(stock) || 0,
+      low_stock_threshold: 5,
+      track_stock: true,
+      is_published: true,
+      is_featured: false,
+      is_trending: true,
+      is_new: true,
+      allowed_payment_methods: allowedMethods,
+      weight_kg: 0.5,
+      has_customization: hasCustomization,
+      mockup_type: mockupType,
+      images: imageUrl.trim()
+        ? [
+            {
+              id: `img_${Date.now()}`,
+              product_id: `prod_${Date.now()}`,
+              image_url: imageUrl.trim(),
+              sort_order: 1,
+              is_primary: true,
+            },
+          ]
+        : [
+            {
+              id: `img_${Date.now()}`,
+              product_id: `prod_${Date.now()}`,
+              image_url:
+                mockupType === 'pen'
+                  ? 'https://images.unsplash.com/photo-1583485088034-697b5bc54ccd?auto=format&fit=crop&w=800&q=80'
+                  : mockupType === 'tshirt'
+                  ? 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=800&q=80'
+                  : mockupType === 'card'
+                  ? 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&w=800&q=80'
+                  : 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=800&q=80',
+              sort_order: 1,
+              is_primary: true,
+            },
+          ],
+      rating_average: 5.0,
+      rating_count: 0,
+      sales_count: 0,
+      seo_title: seoTitle,
+      seo_description: seoDescription,
+      focus_keyword: focusKeyword,
+    };
+
+    try {
+      const stored = localStorage.getItem('mw_trends_products');
+      const existing = stored ? JSON.parse(stored) : INITIAL_PRODUCTS;
+      localStorage.setItem('mw_trends_products', JSON.stringify([newProduct, ...existing]));
+    } catch {
+      // ignore
+    }
+
+    toast.success(`Product "${title}" added to your live catalog!`, 'Catalog Updated');
     router.push('/admin/products');
   };
 

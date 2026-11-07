@@ -27,7 +27,7 @@ export default function HomePage() {
     logo: 'https://mwtrends.pk/brand/logo.svg',
     contactPoint: {
       '@type': 'ContactPoint',
-      telephone: '+92-300-1234567',
+      telephone: '+92-300-0000000',
       contactType: 'customer service',
       areaServed: 'PK',
       availableLanguage: ['English', 'Urdu'],
@@ -184,16 +184,14 @@ export default function HomePage() {
               </Button>
             </a>
 
-            <a
-              href="https://wa.me/923001234567"
-              target="_blank"
-              rel="noreferrer"
+            <Link
+              href="/contact"
             >
               <Button variant="gold" size="md" className="gap-2 font-bold">
                 <Phone className="w-4 h-4" />
-                <span>Join VIP WhatsApp Club</span>
+                <span>Contact VIP Concierge</span>
               </Button>
-            </a>
+            </Link>
           </div>
         </section>
       </div>

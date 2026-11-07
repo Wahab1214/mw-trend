@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -69,8 +70,8 @@ export default function ContactPage() {
               <div className="flex items-center gap-3">
                 <Phone className="w-4 h-4 text-gold shrink-0" />
                 <div>
-                  <strong className="text-text-primary block font-semibold">WhatsApp &amp; Support</strong>
-                  <span>+92 300 1234567 (10 AM - 10 PM PKT)</span>
+                  <strong className="text-text-primary block font-semibold">Customer Helpline</strong>
+                  <span>Direct Studio Desk (10 AM - 10 PM PKT)</span>
                 </div>
               </div>
 
@@ -78,23 +79,21 @@ export default function ContactPage() {
                 <Mail className="w-4 h-4 text-gold shrink-0" />
                 <div>
                   <strong className="text-text-primary block font-semibold">Official Email</strong>
-                  <span>support@mwtrends.pk</span>
+                  <span>wmofficial11@gmail.com</span>
                 </div>
               </div>
             </div>
 
             <div className="pt-2">
-              <a
-                href="https://wa.me/923001234567?text=Hi%20MW%20Trends,%20I%20have%20an%20inquiry"
-                target="_blank"
-                rel="noreferrer"
+              <Link
+                href="/shop"
                 className="block w-full"
               >
-                <Button variant="outline" size="md" className="w-full gap-2 border-[#25D366]/40 text-[#25D366] hover:bg-[#25D366]/10 text-xs font-semibold">
+                <Button variant="gold" size="md" className="w-full gap-2 text-xs font-bold">
                   <MessageCircle className="w-4 h-4" />
-                  <span>Instant WhatsApp Chat</span>
+                  <span>Explore Personalized Catalog</span>
                 </Button>
-              </a>
+              </Link>
             </div>
           </div>
         </div>

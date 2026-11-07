@@ -40,44 +40,78 @@ import { ORDER_STATUS_CONFIG } from '@/lib/constants';
 
 export default function AdminDashboardPage() {
   const [dateRange, setDateRange] = React.useState('month');
+  const [orders, setOrders] = React.useState<any[]>([]);
 
-  // Chart Data: Sales trend over time in PKR
-  const salesOverTimeData = [
-    { date: 'Oct 28', sales: 18500, profit: 8900 },
-    { date: 'Oct 30', sales: 24200, profit: 11400 },
-    { date: 'Nov 01', sales: 31000, profit: 15200 },
-    { date: 'Nov 02', sales: 28400, profit: 13900 },
-    { date: 'Nov 03', sales: 39800, profit: 19800 },
-    { date: 'Nov 04', sales: 44500, profit: 22100 },
-    { date: 'Nov 05', sales: 52000, profit: 26400 },
-  ];
+  React.useEffect(() => {
+    try {
+      const stored = localStorage.getItem('mw_trends_customer_orders');
+      if (stored) {
+        setOrders(JSON.parse(stored));
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
-  // Acquisition Sources data
-  const acquisitionSourceData = [
-    { name: 'Website Direct', value: 48, color: '#C9A44C' },
-    { name: 'WhatsApp Catalog', value: 26, color: '#25D366' },
-    { name: 'Instagram Ads', value: 16, color: '#E1306C' },
-    { name: 'Facebook Store', value: 7, color: '#1877F2' },
-    { name: 'TikTok', value: 3, color: '#FE2C55' },
-  ];
+  // Compute REAL Dynamic Metrics
+  const totalSales = orders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
+  const totalProfit = orders.reduce((sum, o) => sum + (o.net_profit || 0), 0);
+  const totalOrdersCount = orders.length;
+  const avgOrderValue = totalOrdersCount > 0 ? Math.round(totalSales / totalOrdersCount) : 0;
+  const profitMarginPercent = totalSales > 0 ? ((totalProfit / totalSales) * 100).toFixed(1) : '0';
 
-  // Orders by Status
+  const pendingPaymentOrders = orders.filter(
+    (o) => o.payment_status === 'pending' || (o.payment_method !== 'COD' && o.payment_status !== 'verified')
+  );
+
+  // Status breakdown from real orders
   const ordersStatusData = [
-    { status: 'New', count: 12 },
-    { status: 'Confirmed', count: 18 },
-    { status: 'In Production', count: 24 },
-    { status: 'Shipped', count: 32 },
-    { status: 'Delivered', count: 85 },
+    { status: 'New', count: orders.filter((o) => o.status === 'New').length },
+    { status: 'Confirmed', count: orders.filter((o) => o.status === 'Confirmed').length },
+    { status: 'In Production', count: orders.filter((o) => o.status === 'In Production').length },
+    { status: 'Shipped', count: orders.filter((o) => o.status === 'Shipped').length },
+    { status: 'Delivered', count: orders.filter((o) => o.status === 'Delivered').length },
   ];
+
+  // Acquisition source breakdown from real orders
+  const websiteCount = orders.filter((o) => !o.order_source || o.order_source === 'Website').length;
+  const whatsappCount = orders.filter((o) => o.order_source === 'WhatsApp').length;
+  const instagramCount = orders.filter((o) => o.order_source === 'Instagram').length;
+  const otherCount = Math.max(0, orders.length - (websiteCount + whatsappCount + instagramCount));
+
+  const acquisitionSourceData = [
+    { name: 'Website Direct', value: websiteCount || (orders.length === 0 ? 1 : 0), color: '#C9A44C' },
+    { name: 'WhatsApp Catalog', value: whatsappCount, color: '#25D366' },
+    { name: 'Instagram', value: instagramCount, color: '#E1306C' },
+    { name: 'Direct / Call', value: otherCount, color: '#3B82C4' },
+  ].filter((s) => s.value > 0);
+
+  // Dynamic Sales Trend over time in PKR
+  const salesOverTimeData = React.useMemo(() => {
+    if (orders.length === 0) {
+      return [
+        { date: 'Mon', sales: 0, profit: 0 },
+        { date: 'Tue', sales: 0, profit: 0 },
+        { date: 'Wed', sales: 0, profit: 0 },
+        { date: 'Thu', sales: 0, profit: 0 },
+        { date: 'Fri', sales: 0, profit: 0 },
+        { date: 'Sat', sales: 0, profit: 0 },
+        { date: 'Sun', sales: 0, profit: 0 },
+      ];
+    }
+    const daysMap: Record<string, { sales: number; profit: number }> = {};
+    orders.forEach((o) => {
+      const d = new Date(o.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      if (!daysMap[d]) daysMap[d] = { sales: 0, profit: 0 };
+      daysMap[d].sales += o.total_amount;
+      daysMap[d].profit += (o.net_profit || 0);
+    });
+    return Object.keys(daysMap).map((k) => ({ date: k, sales: daysMap[k].sales, profit: daysMap[k].profit }));
+  }, [orders]);
 
   // Low stock products
   const lowStockProducts = INITIAL_PRODUCTS.filter(
-    (p) => p.stock_quantity <= (p.low_stock_threshold || 10)
-  );
-
-  // Pending payments (orders awaiting screenshot verification)
-  const pendingPaymentOrders = INITIAL_ORDERS.filter(
-    (o) => o.payment_status === 'pending' || o.payment_method !== 'COD'
+    (p) => p.stock_quantity <= (p.low_stock_threshold || 5)
   );
 
   return (
@@ -123,11 +157,10 @@ export default function AdminDashboardPage() {
             </span>
           </div>
           <div className="font-serif text-2xl font-black text-gold">
-            Rs. 438,400
+            {formatPKR(totalSales)}
           </div>
-          <div className="text-[11px] text-emerald-500 font-semibold flex items-center gap-1">
-            <TrendingUp className="w-3.5 h-3.5" />
-            <span>+18.4% vs last period</span>
+          <div className="text-[11px] text-text-muted flex items-center gap-1">
+            <span>{totalOrdersCount > 0 ? `${totalOrdersCount} customer transaction(s)` : 'Awaiting first order'}</span>
           </div>
         </div>
 
@@ -140,10 +173,10 @@ export default function AdminDashboardPage() {
             </span>
           </div>
           <div className="font-serif text-2xl font-black text-emerald-500">
-            Rs. 228,600
+            {formatPKR(totalProfit)}
           </div>
           <div className="text-[11px] text-text-secondary">
-            Profit Margin: <strong className="text-text-primary">52.1%</strong>
+            Profit Margin: <strong className="text-text-primary">{profitMarginPercent}%</strong>
           </div>
         </div>
 
@@ -156,10 +189,10 @@ export default function AdminDashboardPage() {
             </span>
           </div>
           <div className="font-serif text-2xl font-black text-text-primary">
-            171 Orders
+            {totalOrdersCount} {totalOrdersCount === 1 ? 'Order' : 'Orders'}
           </div>
           <div className="text-[11px] text-text-secondary">
-            Average Order Value: <strong className="text-gold">Rs. 2,563</strong>
+            Average Order Value: <strong className="text-gold">{formatPKR(avgOrderValue)}</strong>
           </div>
         </div>
 
@@ -175,7 +208,7 @@ export default function AdminDashboardPage() {
             {pendingPaymentOrders.length} Queued
           </div>
           <div className="text-[11px] text-text-muted">
-            Awaiting JazzCash / Bank transfer checks
+            Awaiting manual payment verification
           </div>
         </div>
       </div>
@@ -370,41 +403,55 @@ export default function AdminDashboardPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {INITIAL_ORDERS.map((ord) => (
-              <TableRow key={ord.id}>
-                <TableCell className="font-mono font-bold text-gold">
-                  {ord.order_number}
-                </TableCell>
-                <TableCell>
-                  <span className="font-medium text-text-primary block">{ord.customer_name}</span>
-                  <span className="text-[10px] text-text-muted">{ord.customer_phone}</span>
-                </TableCell>
-                <TableCell>{ord.shipping_city}</TableCell>
-                <TableCell>
-                  <span className="font-semibold text-xs">{ord.payment_method}</span>
-                </TableCell>
-                <TableCell className="font-serif font-bold text-text-primary">
-                  {formatPKR(ord.total_amount)}
-                </TableCell>
-                <TableCell className="font-serif text-emerald-500 font-bold">
-                  {formatPKR(ord.net_profit)}
-                </TableCell>
-                <TableCell>
-                  <Badge
-                    variant={ord.status === 'Shipped' ? 'success' : ord.status === 'Delivered' ? 'success' : 'gold'}
-                  >
-                    {ord.status}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right">
-                  <Link href={`/admin/orders/${ord.id}`}>
-                    <Button variant="outline" size="sm" className="h-8 text-xs">
-                      Inspect
-                    </Button>
-                  </Link>
+            {orders.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={8} className="py-12 text-center">
+                  <div className="flex flex-col items-center justify-center max-w-sm mx-auto text-center space-y-2">
+                    <ShoppingCart className="w-8 h-8 text-gold opacity-80" />
+                    <p className="font-serif font-bold text-sm text-text-primary">No Customer Orders Yet</p>
+                    <p className="text-xs text-text-muted">
+                      Your store is live. Orders placed online or via WhatsApp will automatically update here in real time.
+                    </p>
+                  </div>
                 </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              orders.slice(0, 5).map((ord) => (
+                <TableRow key={ord.id}>
+                  <TableCell className="font-mono font-bold text-gold text-xs">
+                    {ord.order_number}
+                  </TableCell>
+                  <TableCell>
+                    <span className="font-medium text-text-primary block text-xs">{ord.customer_name}</span>
+                    <span className="text-[10px] text-text-muted">{ord.customer_phone}</span>
+                  </TableCell>
+                  <TableCell className="text-xs">{ord.shipping_city}</TableCell>
+                  <TableCell>
+                    <span className="font-semibold text-xs">{ord.payment_method}</span>
+                  </TableCell>
+                  <TableCell className="font-serif font-bold text-text-primary text-xs">
+                    {formatPKR(ord.total_amount)}
+                  </TableCell>
+                  <TableCell className="font-serif text-emerald-500 font-bold text-xs">
+                    {formatPKR(ord.net_profit || 0)}
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={ord.status === 'Shipped' || ord.status === 'Delivered' ? 'success' : 'gold'}
+                    >
+                      {ord.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Link href={`/admin/orders/${ord.id}`}>
+                      <Button variant="outline" size="sm" className="h-8 text-xs">
+                        Inspect
+                      </Button>
+                    </Link>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </div>

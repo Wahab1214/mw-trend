@@ -69,6 +69,18 @@ export default function CheckoutPage() {
   // Submission & Validation States
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [errors, setErrors] = React.useState<Record<string, string>>({});
+  const [storeSettings, setStoreSettings] = React.useState(INITIAL_STORE_SETTINGS);
+
+  React.useEffect(() => {
+    try {
+      const stored = localStorage.getItem('mw_trends_store_settings');
+      if (stored) {
+        setStoreSettings(JSON.parse(stored));
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
   // If cart is empty, redirect to shop
   React.useEffect(() => {
@@ -413,29 +425,33 @@ export default function CheckoutPage() {
 
                 {selectedMethod === 'JazzCash' && (
                   <div className="text-xs space-y-1 bg-surface p-3 rounded-lg border border-border">
-                    <p><strong>Account Title:</strong> {INITIAL_STORE_SETTINGS.payment_accounts.jazzcash?.title}</p>
-                    <p><strong>Account / Mobile:</strong> <span className="font-mono text-gold font-bold">{INITIAL_STORE_SETTINGS.payment_accounts.jazzcash?.number}</span></p>
-                    <p><strong>Till ID:</strong> <span className="font-mono font-bold">{INITIAL_STORE_SETTINGS.payment_accounts.jazzcash?.till_id}</span></p>
-                    <p className="text-text-muted text-[11px] pt-1">{INITIAL_STORE_SETTINGS.payment_accounts.jazzcash?.instructions}</p>
+                    <p><strong>Account Title:</strong> {storeSettings.payment_accounts.jazzcash?.title || 'MW Trends'}</p>
+                    <p><strong>Account / Mobile:</strong> <span className="font-mono text-gold font-bold">{storeSettings.payment_accounts.jazzcash?.number || 'Contact on WhatsApp'}</span></p>
+                    {storeSettings.payment_accounts.jazzcash?.till_id && (
+                      <p><strong>Till ID:</strong> <span className="font-mono font-bold">{storeSettings.payment_accounts.jazzcash?.till_id}</span></p>
+                    )}
+                    <p className="text-text-muted text-[11px] pt-1">{storeSettings.payment_accounts.jazzcash?.instructions}</p>
                   </div>
                 )}
 
                 {selectedMethod === 'Easypaisa' && (
                   <div className="text-xs space-y-1 bg-surface p-3 rounded-lg border border-border">
-                    <p><strong>Account Title:</strong> {INITIAL_STORE_SETTINGS.payment_accounts.easypaisa?.title}</p>
-                    <p><strong>Easypaisa Mobile:</strong> <span className="font-mono text-gold font-bold">{INITIAL_STORE_SETTINGS.payment_accounts.easypaisa?.number}</span></p>
-                    <p className="text-text-muted text-[11px] pt-1">{INITIAL_STORE_SETTINGS.payment_accounts.easypaisa?.instructions}</p>
+                    <p><strong>Account Title:</strong> {storeSettings.payment_accounts.easypaisa?.title || 'MW Trends'}</p>
+                    <p><strong>Easypaisa Mobile:</strong> <span className="font-mono text-gold font-bold">{storeSettings.payment_accounts.easypaisa?.number || 'Contact on WhatsApp'}</span></p>
+                    <p className="text-text-muted text-[11px] pt-1">{storeSettings.payment_accounts.easypaisa?.instructions}</p>
                   </div>
                 )}
 
                 {selectedMethod === 'BankTransfer' && (
                   <div className="text-xs space-y-1 bg-surface p-3 rounded-lg border border-border">
-                    <p><strong>Bank Name:</strong> {INITIAL_STORE_SETTINGS.payment_accounts.bank?.bank_name}</p>
-                    <p><strong>Account Title:</strong> {INITIAL_STORE_SETTINGS.payment_accounts.bank?.account_title}</p>
-                    <p><strong>Account Number:</strong> <span className="font-mono font-bold">{INITIAL_STORE_SETTINGS.payment_accounts.bank?.account_number}</span></p>
-                    <p><strong>IBAN:</strong> <span className="font-mono text-gold font-bold">{INITIAL_STORE_SETTINGS.payment_accounts.bank?.iban}</span></p>
-                    <p><strong>Branch:</strong> {INITIAL_STORE_SETTINGS.payment_accounts.bank?.branch}</p>
-                    <p className="text-text-muted text-[11px] pt-1">{INITIAL_STORE_SETTINGS.payment_accounts.bank?.instructions}</p>
+                    <p><strong>Bank Name:</strong> {storeSettings.payment_accounts.bank?.bank_name || 'Meezan Bank'}</p>
+                    <p><strong>Account Title:</strong> {storeSettings.payment_accounts.bank?.account_title || 'MW Trends'}</p>
+                    <p><strong>Account Number:</strong> <span className="font-mono font-bold">{storeSettings.payment_accounts.bank?.account_number || '02000000000000'}</span></p>
+                    {storeSettings.payment_accounts.bank?.iban && (
+                      <p><strong>IBAN:</strong> <span className="font-mono text-gold font-bold">{storeSettings.payment_accounts.bank?.iban}</span></p>
+                    )}
+                    <p><strong>Branch:</strong> {storeSettings.payment_accounts.bank?.branch || 'Lahore'}</p>
+                    <p className="text-text-muted text-[11px] pt-1">{storeSettings.payment_accounts.bank?.instructions}</p>
                   </div>
                 )}
 

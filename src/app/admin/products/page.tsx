@@ -31,6 +31,17 @@ export default function AdminProductsPage() {
   const [selectedCategory, setSelectedCategory] = React.useState('');
   const [selectedProductIds, setSelectedProductIds] = React.useState<string[]>([]);
 
+  React.useEffect(() => {
+    try {
+      const stored = localStorage.getItem('mw_trends_products');
+      if (stored) {
+        setProducts(JSON.parse(stored));
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
   // Filter products
   const filteredProducts = products.filter((p) => {
     if (search.trim()) {
@@ -47,7 +58,15 @@ export default function AdminProductsPage() {
 
   const handleDelete = (id: string, title: string) => {
     if (confirm(`Are you sure you want to delete "${title}"?`)) {
-      setProducts((prev) => prev.filter((p) => p.id !== id));
+      setProducts((prev) => {
+        const updated = prev.filter((p) => p.id !== id);
+        try {
+          localStorage.setItem('mw_trends_products', JSON.stringify(updated));
+        } catch {
+          // ignore
+        }
+        return updated;
+      });
       toast.success(`Product "${title}" deleted.`);
     }
   };
@@ -58,9 +77,16 @@ export default function AdminProductsPage() {
       id: `prod_copy_${Date.now()}`,
       title: `${prod.title} (Copy)`,
       slug: `${prod.slug}-copy-${Date.now()}`,
-      sku: `${prod.sku}-COPY`,
     };
-    setProducts((prev) => [copy, ...prev]);
+    setProducts((prev) => {
+      const updated = [copy, ...prev];
+      try {
+        localStorage.setItem('mw_trends_products', JSON.stringify(updated));
+      } catch {
+        // ignore
+      }
+      return updated;
+    });
     toast.success(`Duplicated "${prod.title}".`);
   };
 

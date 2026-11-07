@@ -9,10 +9,28 @@ export function WhatsAppFloating() {
   const [showTooltip, setShowTooltip] = React.useState(false);
 
   // Show a welcome tooltip once after 3 seconds
+  const [whatsappNumber, setWhatsappNumber] = React.useState('');
+
   React.useEffect(() => {
     const timer = setTimeout(() => {
       setShowTooltip(true);
     }, 3000);
+
+    try {
+      const stored = localStorage.getItem('mw_trends_store_settings');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.whatsapp_number) {
+          const clean = parsed.whatsapp_number.replace(/[^0-9]/g, '');
+          if (clean && clean.length >= 10) {
+            setWhatsappNumber(clean);
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+
     return () => clearTimeout(timer);
   }, []);
 
@@ -20,9 +38,8 @@ export function WhatsAppFloating() {
     return null;
   }
 
-  const whatsappNumber = '923001234567';
   const defaultMessage = encodeURIComponent('Hi MW Trends! I would like to inquire about a personalized order / custom gift.');
-  const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${defaultMessage}`;
+  const whatsappUrl = whatsappNumber ? `https://wa.me/${whatsappNumber}?text=${defaultMessage}` : '/contact';
 
   return (
     <div className="fixed bottom-16 lg:bottom-6 right-4 sm:right-6 z-40 flex flex-col items-end select-none">

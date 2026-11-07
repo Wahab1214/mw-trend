@@ -24,7 +24,7 @@ export default function AdminCouponsPage() {
       min_order_value: 1500,
       max_discount_amount: 500,
       per_user_limit: 1,
-      used_count: 42,
+      used_count: 0,
       is_active: true,
     },
     {
@@ -35,7 +35,7 @@ export default function AdminCouponsPage() {
       discount_value: 250,
       min_order_value: 2000,
       per_user_limit: 1,
-      used_count: 76,
+      used_count: 0,
       is_active: true,
     },
     {
@@ -46,7 +46,7 @@ export default function AdminCouponsPage() {
       discount_value: 300,
       min_order_value: 2500,
       per_user_limit: 1,
-      used_count: 19,
+      used_count: 0,
       is_active: true,
     },
     {
@@ -57,10 +57,30 @@ export default function AdminCouponsPage() {
       discount_value: 15,
       min_order_value: 1000,
       per_user_limit: 1,
-      used_count: 88,
+      used_count: 0,
       is_active: true,
     },
   ]);
+
+  React.useEffect(() => {
+    try {
+      const stored = localStorage.getItem('mw_trends_coupons');
+      if (stored) {
+        setCoupons(JSON.parse(stored));
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const saveCoupons = (updated: Coupon[]) => {
+    setCoupons(updated);
+    try {
+      localStorage.setItem('mw_trends_coupons', JSON.stringify(updated));
+    } catch {
+      // ignore
+    }
+  };
 
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [newCode, setNewCode] = React.useState('');
@@ -83,14 +103,14 @@ export default function AdminCouponsPage() {
       is_active: true,
     };
 
-    setCoupons((prev) => [coupon, ...prev]);
+    saveCoupons([coupon, ...coupons]);
     setIsModalOpen(false);
     setNewCode('');
     toast.success(`Coupon code "${coupon.code}" created and active!`);
   };
 
   const handleDelete = (id: string, code: string) => {
-    setCoupons((prev) => prev.filter((c) => c.id !== id));
+    saveCoupons(coupons.filter((c) => c.id !== id));
     toast.info(`Coupon "${code}" deleted.`);
   };
 

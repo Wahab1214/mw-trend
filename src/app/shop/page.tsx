@@ -36,6 +36,18 @@ function ShopContent() {
   const [viewMode, setViewMode] = React.useState<'grid' | 'list'>('grid');
   const [currentPage, setCurrentPage] = React.useState(1);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = React.useState(false);
+  const [allProducts, setAllProducts] = React.useState(INITIAL_PRODUCTS);
+
+  React.useEffect(() => {
+    try {
+      const stored = localStorage.getItem('mw_trends_products');
+      if (stored) {
+        setAllProducts(JSON.parse(stored));
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
   const ITEMS_PER_PAGE = 8;
 
@@ -50,7 +62,7 @@ function ShopContent() {
 
   // Filter & Sort logic
   const filteredProducts = React.useMemo(() => {
-    return INITIAL_PRODUCTS.filter((product) => {
+    return allProducts.filter((product) => {
       // Category filter
       if (selectedCategory && product.category_name?.toLowerCase() !== selectedCategory.toLowerCase()) {
         const catObj = INITIAL_CATEGORIES.find((c) => c.slug === selectedCategory);

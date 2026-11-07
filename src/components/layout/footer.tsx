@@ -55,15 +55,13 @@ export function Footer() {
               >
                 <Facebook className="w-4 h-4" />
               </a>
-              <a
-                href="https://wa.me/923001234567"
-                target="_blank"
-                rel="noreferrer"
-                aria-label="WhatsApp"
+              <Link
+                href="/contact"
+                aria-label="Contact Desk"
                 className="w-8 h-8 rounded-lg bg-elevated border border-border flex items-center justify-center text-text-secondary hover:text-emerald-500 hover:border-emerald-500/40 transition-colors"
               >
                 <Phone className="w-4 h-4" />
-              </a>
+              </Link>
             </div>
           </div>
 
@@ -156,12 +154,8 @@ export function Footer() {
                 <span>Gulberg III, Lahore, Punjab, Pakistan</span>
               </li>
               <li className="flex items-center gap-2">
-                <Phone className="w-4 h-4 text-gold shrink-0" />
-                <span>+92 300 1234567</span>
-              </li>
-              <li className="flex items-center gap-2">
                 <Mail className="w-4 h-4 text-gold shrink-0" />
-                <span>support@mwtrends.pk</span>
+                <span>wmofficial11@gmail.com</span>
               </li>
               <li className="pt-2">
                 <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full">

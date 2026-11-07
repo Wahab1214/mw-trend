@@ -35,32 +35,52 @@ export default function OrderDetailPage() {
   const orderId = params?.id as string;
   const toast = useToast();
 
-  const [order, setOrder] = React.useState<Order>(() => {
+  const [order, setOrder] = React.useState<Order | null>(() => {
     // Check localStorage
     if (typeof window !== 'undefined') {
       try {
         const stored = localStorage.getItem('mw_trends_customer_orders');
         if (stored) {
           const list = JSON.parse(stored);
-          const found = list.find((o: any) => o.id === orderId);
+          const found = list.find((o: any) => o.id === orderId || o.order_number === orderId);
           if (found) return found;
         }
       } catch {
         // ignore
       }
     }
-    return INITIAL_ORDERS.find((o) => o.id === orderId) || INITIAL_ORDERS[0];
+    return INITIAL_ORDERS.find((o) => o.id === orderId || o.order_number === orderId) || null;
   });
 
-  const [currentStatus, setCurrentStatus] = React.useState<OrderStatus>(order.status);
-  const [courierName, setCourierName] = React.useState(order.courier_name || COURIER_PARTNERS[0].name);
-  const [trackingNumber, setTrackingNumber] = React.useState(order.tracking_number || '');
-  const [courierCost, setCourierCost] = React.useState<number>(order.courier_cost || 180);
-  const [adPackingCost, setAdPackingCost] = React.useState<number>(order.packaging_ad_expense || 100);
+  const [currentStatus, setCurrentStatus] = React.useState<OrderStatus>(order?.status || 'New');
+  const [courierName, setCourierName] = React.useState(order?.courier_name || COURIER_PARTNERS[0].name);
+  const [trackingNumber, setTrackingNumber] = React.useState(order?.tracking_number || '');
+  const [courierCost, setCourierCost] = React.useState<number>(order?.courier_cost || 180);
+  const [adPackingCost, setAdPackingCost] = React.useState<number>(order?.packaging_ad_expense || 100);
   const [isProofModalOpen, setIsProofModalOpen] = React.useState(false);
   const [paymentVerified, setPaymentVerified] = React.useState(
-    order.payment_status === 'verified' || order.payment_status === 'paid'
+    order?.payment_status === 'verified' || order?.payment_status === 'paid'
   );
+
+  if (!order) {
+    return (
+      <div className="max-w-md mx-auto py-24 text-center space-y-4 select-none">
+        <div className="w-16 h-16 rounded-2xl bg-elevated border border-border flex items-center justify-center mx-auto text-text-muted">
+          <Truck className="w-8 h-8 text-gold" />
+        </div>
+        <h2 className="font-serif text-2xl font-bold text-text-primary">Order Not Found</h2>
+        <p className="text-xs text-text-muted">
+          The requested order ID does not exist in your store database.
+        </p>
+        <Link href="/admin/orders" className="inline-block pt-2">
+          <Button variant="gold" size="sm" className="gap-2 font-bold text-xs">
+            <ArrowLeft className="w-4 h-4" />
+            <span>Return to Orders Desk</span>
+          </Button>
+        </Link>
+      </div>
+    );
+  }
 
   // Profit calculation
   const totalCost = order.items?.reduce((acc, it) => acc + (it.unit_cost * it.quantity), 0) || order.total_cost_price;
@@ -75,7 +95,7 @@ export default function OrderDetailPage() {
 
   const handleStatusChange = (newStatus: OrderStatus) => {
     setCurrentStatus(newStatus);
-    setOrder((prev) => ({ ...prev, status: newStatus }));
+    setOrder((prev) => (prev ? { ...prev, status: newStatus } : null));
     toast.success(`Order status changed to "${newStatus}" and audit log recorded.`);
   };
 
@@ -83,39 +103,51 @@ export default function OrderDetailPage() {
     const selectedPartner = COURIER_PARTNERS.find((c) => c.name === courierName);
     const trackingUrl = selectedPartner ? `${selectedPartner.trackingUrl}${trackingNumber}` : '';
 
-    setOrder((prev) => ({
-      ...prev,
-      courier_name: courierName,
-      tracking_number: trackingNumber,
-      tracking_url: trackingUrl,
-      status: 'Shipped',
-    }));
+    setOrder((prev) =>
+      prev
+        ? {
+            ...prev,
+            courier_name: courierName,
+            tracking_number: trackingNumber,
+            tracking_url: trackingUrl,
+            status: 'Shipped',
+          }
+        : null
+    );
     setCurrentStatus('Shipped');
     toast.success(`Order dispatched via ${courierName}! Tracking number: ${trackingNumber}`);
   };
 
   const handleApprovePayment = () => {
     setPaymentVerified(true);
-    setOrder((prev) => ({
-      ...prev,
-      payment_status: 'verified',
-      payment_proof: prev.payment_proof
-        ? { ...prev.payment_proof, status: 'approved' }
-        : undefined,
-    }));
+    setOrder((prev) =>
+      prev
+        ? {
+            ...prev,
+            payment_status: 'verified',
+            payment_proof: prev.payment_proof
+              ? { ...prev.payment_proof, status: 'approved' }
+              : undefined,
+          }
+        : null
+    );
     setIsProofModalOpen(false);
     toast.success('Payment proof verified and approved!');
   };
 
   const handleRejectPayment = () => {
     setPaymentVerified(false);
-    setOrder((prev) => ({
-      ...prev,
-      payment_status: 'failed',
-      payment_proof: prev.payment_proof
-        ? { ...prev.payment_proof, status: 'rejected' }
-        : undefined,
-    }));
+    setOrder((prev) =>
+      prev
+        ? {
+            ...prev,
+            payment_status: 'failed',
+            payment_proof: prev.payment_proof
+              ? { ...prev.payment_proof, status: 'rejected' }
+              : undefined,
+          }
+        : null
+    );
     setIsProofModalOpen(false);
     toast.error('Payment proof rejected. Notification sent to customer.');
   };

@@ -36,7 +36,21 @@ export default function ProductDetailPage() {
   const params = useParams();
   const slug = params?.slug as string;
 
-  const product = INITIAL_PRODUCTS.find((p) => p.slug === slug);
+  const [product, setProduct] = React.useState<Product | undefined>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('mw_trends_products');
+        if (stored) {
+          const list = JSON.parse(stored);
+          const found = list.find((p: any) => p.slug === slug);
+          if (found) return found;
+        }
+      } catch {
+        // ignore
+      }
+    }
+    return INITIAL_PRODUCTS.find((p) => p.slug === slug);
+  });
 
   if (!product) {
     notFound();

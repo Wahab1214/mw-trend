@@ -176,71 +176,101 @@ export default function AdminOrdersPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredOrders.map((ord) => {
-              const statusCfg = ORDER_STATUS_CONFIG[ord.status] || {
-                label: ord.status,
-                color: 'text-text-primary',
-                bg: 'bg-elevated',
-              };
-
-              return (
-                <TableRow key={ord.id}>
-                  <TableCell>
-                    <strong className="font-mono text-gold font-bold text-xs sm:text-sm block">
-                      {ord.order_number}
-                    </strong>
-                    <span className="text-[10px] text-text-muted">
-                      {formatDate(ord.created_at)}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <strong className="text-xs font-semibold text-text-primary block">
-                      {ord.customer_name}
-                    </strong>
-                    <span className="text-[10px] text-text-muted">{ord.customer_phone}</span>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-xs font-medium text-text-primary">{ord.shipping_city}</span>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-elevated font-semibold text-text-secondary border border-border">
-                      {ord.order_source || 'Website'}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <div className="space-y-0.5">
-                      <span className="text-xs font-semibold block">{ord.payment_method}</span>
-                      <span className={`text-[10px] font-bold ${ord.payment_status === 'verified' || ord.payment_status === 'paid' ? 'text-status-success' : 'text-amber-500'}`}>
-                        {ord.payment_status.toUpperCase()}
-                      </span>
+            {filteredOrders.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={9} className="py-16 text-center">
+                  <div className="flex flex-col items-center justify-center max-w-sm mx-auto text-center space-y-3">
+                    <div className="w-12 h-12 rounded-2xl bg-elevated border border-border flex items-center justify-center text-text-muted">
+                      <Truck className="w-6 h-6 text-gold" />
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <span className="font-serif font-bold text-text-primary text-xs sm:text-sm">
-                      {formatPKR(ord.total_amount)}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <span className="font-serif font-bold text-emerald-500 text-xs sm:text-sm">
-                      {formatPKR(ord.net_profit)}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={ord.status === 'Shipped' || ord.status === 'Delivered' ? 'success' : 'gold'}>
-                      {statusCfg.label}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Link href={`/admin/orders/${ord.id}`}>
-                      <Button variant="outline" size="sm" className="h-8 gap-1 text-xs">
-                        <Eye className="w-3.5 h-3.5 text-gold" />
-                        <span>Manage</span>
-                      </Button>
-                    </Link>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
+                    <div>
+                      <h3 className="font-serif font-bold text-base text-text-primary">
+                        {orders.length === 0 ? 'No Orders Received Yet' : 'No Matching Orders'}
+                      </h3>
+                      <p className="text-xs text-text-muted mt-1 leading-relaxed">
+                        {orders.length === 0
+                          ? 'Your store is live and ready for customers. Orders placed on your website or via WhatsApp will appear here in real time.'
+                          : 'No orders matched your search or filter criteria. Try clearing filters.'}
+                      </p>
+                    </div>
+                    {orders.length === 0 && (
+                      <Link href="/admin/orders/new">
+                        <Button variant="gold" size="sm" className="mt-2 text-xs font-bold gap-1.5">
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Create Manual Order</span>
+                        </Button>
+                      </Link>
+                    )}
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredOrders.map((ord) => {
+                const statusCfg = ORDER_STATUS_CONFIG[ord.status] || {
+                  label: ord.status,
+                  color: 'text-text-primary',
+                  bg: 'bg-elevated',
+                };
+
+                return (
+                  <TableRow key={ord.id}>
+                    <TableCell>
+                      <strong className="font-mono text-gold font-bold text-xs sm:text-sm block">
+                        {ord.order_number}
+                      </strong>
+                      <span className="text-[10px] text-text-muted">
+                        {formatDate(ord.created_at)}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <strong className="text-xs font-semibold text-text-primary block">
+                        {ord.customer_name}
+                      </strong>
+                      <span className="text-[10px] text-text-muted">{ord.customer_phone}</span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-xs font-medium text-text-primary">{ord.shipping_city}</span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-elevated font-semibold text-text-secondary border border-border">
+                        {ord.order_source || 'Website'}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-0.5">
+                        <span className="text-xs font-semibold block">{ord.payment_method}</span>
+                        <span className={`text-[10px] font-bold ${ord.payment_status === 'verified' || ord.payment_status === 'paid' ? 'text-status-success' : 'text-amber-500'}`}>
+                          {ord.payment_status.toUpperCase()}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-serif font-bold text-text-primary text-xs sm:text-sm">
+                        {formatPKR(ord.total_amount)}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-serif font-bold text-emerald-500 text-xs sm:text-sm">
+                        {formatPKR(ord.net_profit)}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={ord.status === 'Shipped' || ord.status === 'Delivered' ? 'success' : 'gold'}>
+                        {statusCfg.label}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Link href={`/admin/orders/${ord.id}`}>
+                        <Button variant="outline" size="sm" className="h-8 gap-1 text-xs">
+                          <Eye className="w-3.5 h-3.5 text-gold" />
+                          <span>Manage</span>
+                        </Button>
+                      </Link>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            )}
           </TableBody>
         </Table>
       </div>
