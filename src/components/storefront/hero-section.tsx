@@ -106,19 +106,19 @@ export function HeroSection() {
               <div className="relative my-auto w-full aspect-square max-h-[250px] overflow-hidden rounded-2xl">
                 <Image
                   src="https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=800&q=80"
-                  alt="Royal Gold Monogram Mug"
+                  alt="MW Trends Bespoke Gifts"
                   fill
                   priority
                   className="object-cover rounded-2xl group-hover:scale-105 transition-transform duration-500"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
                 <div className="absolute bottom-3 left-3 right-3 text-white">
-                  <span className="text-xs font-serif text-gold block">Bestseller of the Week</span>
-                  <h3 className="text-sm font-bold truncate">The Royal Gold Monogram Ceramic Mug</h3>
+                  <span className="text-xs font-serif text-gold block">MW Trends Atelier</span>
+                  <h3 className="text-sm font-bold truncate">Bespoke Personalized Gifts</h3>
                   <div className="flex justify-between items-center mt-1">
-                    <span className="text-gold font-serif font-extrabold text-base">Rs. 999</span>
+                    <span className="text-gold font-serif font-extrabold text-xs">Nationwide Express COD</span>
                     <span className="text-[10px] bg-gold/20 text-gold border border-gold/40 px-2 py-0.5 rounded-full">
-                      Free Custom Name
+                      Custom Name &amp; Foil
                     </span>
                   </div>
                 </div>
@@ -126,10 +126,10 @@ export function HeroSection() {
 
               {/* Bottom bar */}
               <Link
-                href="/product/royal-gold-monogram-ceramic-mug"
+                href="/shop"
                 className="z-10 w-full py-2.5 rounded-xl bg-gold hover:bg-gold-light text-black text-center text-xs font-bold uppercase tracking-wider transition-colors shadow-sm"
               >
-                Customize Your Mug Now &rarr;
+                Explore Collection &rarr;
               </Link>
             </div>
           </div>
