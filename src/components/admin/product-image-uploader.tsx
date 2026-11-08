@@ -12,8 +12,8 @@ interface ProductImageUploaderProps {
   maxImages?: number;
 }
 
-// Client-side image compression using HTML5 Canvas
-async function compressImageFile(file: File, maxWidth = 1200, maxHeight = 1200, quality = 0.85): Promise<string> {
+// Client-side image compression using HTML5 Canvas (high quality, ultra lightweight)
+async function compressImageFile(file: File, maxWidth = 900, maxHeight = 900, quality = 0.75): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (event) => {

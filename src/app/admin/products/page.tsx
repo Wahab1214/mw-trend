@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { INITIAL_CATEGORIES } from '@/lib/mock-data';
+import { INITIAL_CATEGORIES, INITIAL_PRODUCTS } from '@/lib/mock-data';
 import { Product } from '@/types';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -26,7 +26,7 @@ import {
 
 export default function AdminProductsPage() {
   const toast = useToast();
-  const [products, setProducts] = React.useState<Product[]>([]);
+  const [products, setProducts] = React.useState<Product[]>(INITIAL_PRODUCTS);
   const [search, setSearch] = React.useState('');
   const [selectedCategory, setSelectedCategory] = React.useState('');
 
@@ -34,13 +34,22 @@ export default function AdminProductsPage() {
     try {
       const stored = localStorage.getItem('mw_trends_products');
       if (stored) {
-        setProducts(JSON.parse(stored));
-      } else {
-        setProducts([]);
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const merged = [...parsed];
+          for (const initP of INITIAL_PRODUCTS) {
+            if (!merged.some((m) => m.id === initP.id || m.slug === initP.slug)) {
+              merged.push(initP);
+            }
+          }
+          setProducts(merged);
+          return;
+        }
       }
     } catch {
-      setProducts([]);
+      // ignore
     }
+    setProducts(INITIAL_PRODUCTS);
   }, []);
 
   // Filter products

@@ -142,7 +142,8 @@ export default function NewProductPage() {
     }
 
     const finalSlug = slug.trim() || slugify(title);
-    const selectedCatObj = categoriesList.find((c) => c.id === category);
+    const selectedCatObj = categoriesList.find((c) => c.id === category || c.slug === category);
+    const catName = selectedCatObj ? selectedCatObj.name : (category || 'Love Cards');
 
     const newProduct: any = {
       id: `prod_${Date.now()}`,
@@ -151,8 +152,8 @@ export default function NewProductPage() {
       sku: sku.trim() || `MW-${Date.now().toString().slice(-6)}`,
       short_description: shortDesc,
       description: description,
-      category_id: category,
-      category_name: selectedCatObj ? selectedCatObj.name : 'Custom Gifts',
+      category_id: selectedCatObj ? selectedCatObj.id : category,
+      category_name: catName,
       base_cost_price: Number(baseCostPrice) || 0,
       regular_price: Number(regularPrice) || 0,
       sale_price: salePrice ? Number(salePrice) : undefined,

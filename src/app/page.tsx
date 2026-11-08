@@ -11,23 +11,34 @@ import { BundlesSection } from '@/components/storefront/bundles-section';
 import { GiftFinderTeaser } from '@/components/storefront/gift-finder-teaser';
 import { TestimonialsSection } from '@/components/storefront/testimonials-section';
 import { TrustBadges } from '@/components/storefront/trust-badges';
-import { INITIAL_CATEGORIES } from '@/lib/mock-data';
+import { INITIAL_CATEGORIES, INITIAL_PRODUCTS } from '@/lib/mock-data';
 import { Product } from '@/types';
 import { ArrowRight, Flame, Sparkles, Instagram, Phone, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export default function HomePage() {
-  const [allProducts, setAllProducts] = React.useState<Product[]>([]);
+  const [allProducts, setAllProducts] = React.useState<Product[]>(INITIAL_PRODUCTS);
 
   React.useEffect(() => {
     try {
       const stored = localStorage.getItem('mw_trends_products');
       if (stored) {
-        setAllProducts(JSON.parse(stored));
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const merged = [...parsed];
+          for (const initP of INITIAL_PRODUCTS) {
+            if (!merged.some((m) => m.id === initP.id || m.slug === initP.slug)) {
+              merged.push(initP);
+            }
+          }
+          setAllProducts(merged);
+          return;
+        }
       }
     } catch {
       // ignore
     }
+    setAllProducts(INITIAL_PRODUCTS);
   }, []);
 
   const trendingProducts = allProducts.filter((p) => p.is_trending).slice(0, 4);

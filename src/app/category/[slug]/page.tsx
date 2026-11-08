@@ -18,22 +18,45 @@ export default function CategoryDetailPage() {
     notFound();
   }
 
-  const [allProducts, setAllProducts] = React.useState<any[]>([]);
+  const [allProducts, setAllProducts] = React.useState<any[]>(INITIAL_PRODUCTS);
 
   React.useEffect(() => {
     try {
       const stored = localStorage.getItem('mw_trends_products');
       if (stored) {
-        setAllProducts(JSON.parse(stored));
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const merged = [...parsed];
+          for (const initP of INITIAL_PRODUCTS) {
+            if (!merged.some((m) => m.id === initP.id || m.slug === initP.slug)) {
+              merged.push(initP);
+            }
+          }
+          setAllProducts(merged);
+          return;
+        }
       }
     } catch {
       // ignore
     }
+    setAllProducts(INITIAL_PRODUCTS);
   }, []);
 
-  const products = allProducts.filter(
-    (p) => p.category_id === category.id || p.category_name?.toLowerCase() === category.name.toLowerCase()
-  );
+  const products = allProducts.filter((p) => {
+    const pCatId = (p.category_id || '').toLowerCase();
+    const pCatName = (p.category_name || '').toLowerCase();
+    const targetId = (category.id || '').toLowerCase();
+    const targetName = (category.name || '').toLowerCase();
+    const targetSlug = (category.slug || '').toLowerCase();
+
+    return (
+      pCatId === targetId ||
+      pCatId === targetSlug ||
+      pCatName === targetName ||
+      pCatName.includes(targetName) ||
+      targetName.includes(pCatName)
+    );
+  });
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 select-none space-y-8">

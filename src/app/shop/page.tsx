@@ -42,11 +42,22 @@ function ShopContent() {
     try {
       const stored = localStorage.getItem('mw_trends_products');
       if (stored) {
-        setAllProducts(JSON.parse(stored));
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const merged = [...parsed];
+          for (const initP of INITIAL_PRODUCTS) {
+            if (!merged.some((m) => m.id === initP.id || m.slug === initP.slug)) {
+              merged.push(initP);
+            }
+          }
+          setAllProducts(merged);
+          return;
+        }
       }
     } catch {
       // ignore
     }
+    setAllProducts(INITIAL_PRODUCTS);
   }, []);
 
   const ITEMS_PER_PAGE = 8;
