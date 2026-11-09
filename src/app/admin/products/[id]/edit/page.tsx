@@ -9,7 +9,7 @@ import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/components/ui/toast';
-import { INITIAL_CATEGORIES } from '@/lib/mock-data';
+import { INITIAL_CATEGORIES, INITIAL_PRODUCTS } from '@/lib/mock-data';
 import { Product, PaymentMethod, MockupType, ProductImage } from '@/types';
 import { recordAuditLog } from '@/lib/audit';
 import { slugify } from '@/lib/utils';
@@ -52,29 +52,34 @@ export default function EditProductPage() {
         setCategoriesList(JSON.parse(storedCategories));
       }
 
+      let match: Product | undefined;
       const stored = localStorage.getItem('mw_trends_products');
       if (stored) {
         const list: Product[] = JSON.parse(stored);
-        const match = list.find((p) => p.id === productId);
-        if (match) {
-          setProduct(match);
-          setTitle(match.title);
-          setSlug(match.slug);
-          setSku(match.sku || '');
-          setCategory(match.category_id || INITIAL_CATEGORIES[0]?.id || '');
-          setDescription(match.description);
-          setImages(match.images || []);
-          setBaseCostPrice(match.base_cost_price);
-          setRegularPrice(match.regular_price);
-          setSalePrice(match.sale_price || 0);
-          setStock(match.stock_quantity);
-          setHasCustomization(match.has_customization);
-          setMockupType(match.mockup_type || 'mug');
-          setAllowedMethods(match.allowed_payment_methods || ['COD', 'JazzCash', 'Easypaisa', 'BankTransfer']);
-          setFocusKeyword(match.focus_keyword || '');
-          setSeoTitle(match.seo_title || '');
-          setSeoDescription(match.seo_description || '');
-        }
+        match = list.find((p) => p.id === productId || p.slug === productId);
+      }
+      if (!match) {
+        match = INITIAL_PRODUCTS.find((p) => p.id === productId || p.slug === productId);
+      }
+
+      if (match) {
+        setProduct(match);
+        setTitle(match.title);
+        setSlug(match.slug);
+        setSku(match.sku || '');
+        setCategory(match.category_id || INITIAL_CATEGORIES[0]?.id || '');
+        setDescription(match.description);
+        setImages(match.images || []);
+        setBaseCostPrice(match.base_cost_price);
+        setRegularPrice(match.regular_price);
+        setSalePrice(match.sale_price || 0);
+        setStock(match.stock_quantity);
+        setHasCustomization(match.has_customization);
+        setMockupType(match.mockup_type || 'mug');
+        setAllowedMethods(match.allowed_payment_methods || ['COD', 'JazzCash', 'Easypaisa', 'BankTransfer']);
+        setFocusKeyword(match.focus_keyword || '');
+        setSeoTitle(match.seo_title || '');
+        setSeoDescription(match.seo_description || '');
       }
     } catch {
       // ignore
@@ -122,10 +127,18 @@ export default function EditProductPage() {
 
     try {
       const stored = localStorage.getItem('mw_trends_products');
-      const list: Product[] = stored ? JSON.parse(stored) : [];
+      let list: Product[] = stored ? JSON.parse(stored) : [];
+
+      // Ensure all initial products are present in the list
+      for (const initP of INITIAL_PRODUCTS) {
+        if (!list.some((p) => p.id === initP.id)) {
+          list.push(initP);
+        }
+      }
+
+      const selectedCatObj = categoriesList.find((c) => c.id === category);
       const updatedList = list.map((p) => {
-        if (p.id === productId) {
-          const selectedCatObj = categoriesList.find((c) => c.id === category);
+        if (p.id === productId || p.slug === productId) {
           return {
             ...p,
             title,
@@ -135,7 +148,7 @@ export default function EditProductPage() {
             category_name: selectedCatObj ? selectedCatObj.name : p.category_name,
             description,
             images: images.length > 0 ? images : p.images,
-            baseCostPrice: baseCostPrice,
+            base_cost_price: baseCostPrice,
             regular_price: regularPrice,
             sale_price: salePrice || undefined,
             stock_quantity: stock,
