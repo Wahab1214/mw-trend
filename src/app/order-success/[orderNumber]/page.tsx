@@ -44,7 +44,7 @@ export default function OrderSuccessPage() {
   const whatsappMessage = encodeURIComponent(
     `Assalam-o-Alaikum MW Trends! I just placed order #${orderNumber}. Please confirm my order details.`
   );
-  const whatsappUrl = `https://wa.me/923001234567?text=${whatsappMessage}`;
+  const whatsappUrl = `https://wa.me/923370566870?text=${whatsappMessage}`;
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12 select-none space-y-8">

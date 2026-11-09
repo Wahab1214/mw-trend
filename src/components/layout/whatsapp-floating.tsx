@@ -9,7 +9,7 @@ export function WhatsAppFloating() {
   const [showTooltip, setShowTooltip] = React.useState(false);
 
   // Show a welcome tooltip once after 3 seconds
-  const [whatsappNumber, setWhatsappNumber] = React.useState('');
+  const [whatsappNumber, setWhatsappNumber] = React.useState('923370566870');
 
   React.useEffect(() => {
     const timer = setTimeout(() => {

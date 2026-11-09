@@ -121,7 +121,7 @@ export default function ProductDetailPage() {
   const whatsappText = encodeURIComponent(
     `Hi MW Trends, I would like to order: "${product.title}" (SKU: ${product.sku || 'N/A'}). URL: https://mwtrends.pk/product/${product.slug}`
   );
-  const whatsappUrl = `https://wa.me/923001234567?text=${whatsappText}`;
+  const whatsappUrl = `https://wa.me/923370566870?text=${whatsappText}`;
 
   // JSON-LD Product Schema
   const productJsonLd = {
