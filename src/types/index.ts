@@ -17,7 +17,7 @@ export type PaymentStatus = 'pending' | 'paid' | 'verified' | 'failed' | 'refund
 
 export type RoleType = 'owner' | 'admin' | 'manager' | 'order_handler' | 'editor' | 'viewer' | 'customer';
 
-export type MockupType = 'mug' | 'pen' | 'tshirt' | 'hoodie' | 'cap' | 'phone_case' | 'card';
+export type MockupType = 'mug' | 'pen' | 'tshirt' | 'hoodie' | 'cap' | 'phone_case' | 'card' | 'none';
 
 export interface CustomFieldDefinition {
   id: string;

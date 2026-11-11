@@ -34,23 +34,33 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select } from '@/components/ui/select';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
-import { INITIAL_ORDERS, INITIAL_PRODUCTS } from '@/lib/mock-data';
+import { useCatalog } from '@/lib/store/catalog-context';
+import { fetchOrdersApi } from '@/lib/catalog-client';
+import { Order } from '@/types';
 import { formatPKR, formatDate } from '@/lib/utils';
 import { ORDER_STATUS_CONFIG } from '@/lib/constants';
 
 export default function AdminDashboardPage() {
   const [dateRange, setDateRange] = React.useState('month');
-  const [orders, setOrders] = React.useState<any[]>([]);
+  const [orders, setOrders] = React.useState<Order[]>([]);
+  const [healthWarning, setHealthWarning] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    try {
-      const stored = localStorage.getItem('mw_trends_customer_orders');
-      if (stored) {
-        setOrders(JSON.parse(stored));
-      }
-    } catch {
-      // ignore
-    }
+    fetchOrdersApi()
+      .then((list) => {
+        if (Array.isArray(list)) setOrders(list);
+      })
+      .catch(() => {});
+    fetch('/api/health')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data && data.hasServiceKey === false) {
+          setHealthWarning(
+            'Vercel / Server environment is missing SUPABASE_SERVICE_ROLE_KEY. Add it in Vercel Project Settings -> Environment Variables so admin product/category saves & image uploads sync to cloud.'
+          );
+        }
+      })
+      .catch(() => {});
   }, []);
 
   // Compute REAL Dynamic Metrics
@@ -109,13 +119,23 @@ export default function AdminDashboardPage() {
     return Object.keys(daysMap).map((k) => ({ date: k, sales: daysMap[k].sales, profit: daysMap[k].profit }));
   }, [orders]);
 
+  const { products } = useCatalog();
   // Low stock products
-  const lowStockProducts = INITIAL_PRODUCTS.filter(
+  const lowStockProducts = products.filter(
     (p) => p.stock_quantity <= (p.low_stock_threshold || 5)
   );
 
   return (
     <div className="space-y-8 select-none">
+      {healthWarning && (
+        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/40 text-amber-300 text-xs flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+          <div>
+            <strong className="font-bold text-amber-200 block mb-0.5">Cloud Sync Setup Notice</strong>
+            <span>{healthWarning}</span>
+          </div>
+        </div>
+      )}
       {/* Top Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-5">
         <div>

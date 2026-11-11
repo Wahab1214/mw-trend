@@ -58,7 +58,7 @@ export default function ShippingReturnsPage() {
             <span>3. How to Claim a Free Replacement</span>
           </h3>
           <p>
-            Within 48 hours of delivery, take a clear photo of the parcel and defective item, then send it to our WhatsApp helpline at <strong>+92 300 1234567</strong> along with your Order Reference Number (e.g. MW-001041). Our quality desk will dispatch a new piece immediately.
+            Within 48 hours of delivery, take a clear photo of the parcel and defective item, then send it to our WhatsApp helpline at <strong>+92 337 0566870</strong> along with your Order Reference Number (e.g. MW-001041). Our quality desk will dispatch a replacement piece immediately.
           </p>
         </div>
       </div>

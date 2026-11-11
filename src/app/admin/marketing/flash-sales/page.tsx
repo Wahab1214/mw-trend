@@ -6,46 +6,92 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/toast';
+import { useCatalog } from '@/lib/store/catalog-context';
 import { INITIAL_FLASH_SALE } from '@/lib/mock-data';
 import { recordAuditLog } from '@/lib/audit';
-import { Flame, Clock, Plus } from 'lucide-react';
+import { Flame } from 'lucide-react';
 
 export default function AdminFlashSalesPage() {
   const toast = useToast();
+  const { refreshCatalog } = useCatalog();
   const [sale, setSale] = React.useState(INITIAL_FLASH_SALE);
   const [isActive, setIsActive] = React.useState(false);
+  const [durationHours, setDurationHours] = React.useState<number>(48);
+  const [isSaving, setIsSaving] = React.useState(false);
 
   React.useEffect(() => {
-    try {
-      const stored = localStorage.getItem('mw_trends_flash_sale');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        setSale(parsed);
-        setIsActive(parsed.is_active || false);
-      }
-    } catch {
-      // ignore
-    }
+    fetch('/api/marketing', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data.flashSales) && data.flashSales.length > 0) {
+          const latest = data.flashSales[0];
+          setSale(latest);
+          setIsActive(Boolean(latest.is_active));
+        }
+      })
+      .catch(() => {});
   }, []);
+
+  const persistFlashSale = async (nextActive: boolean) => {
+    setIsSaving(true);
+    try {
+      const now = new Date();
+      const end = new Date(now.getTime() + Math.max(1, durationHours) * 60 * 60 * 1000);
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sale.id || '');
+
+      const res = await fetch('/api/marketing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          entity: 'flash_sale',
+          ...(isUuid ? { id: sale.id } : {}),
+          title: sale.title.trim() || 'Seasonal Sale Offer',
+          description: sale.description || '',
+          is_active: nextActive,
+          start_datetime: now.toISOString(),
+          end_datetime: end.toISOString(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to save flash sale.');
+
+      if (data.flashSale) {
+        setSale(data.flashSale);
+        setIsActive(Boolean(data.flashSale.is_active));
+      }
+      await refreshCatalog();
+      recordAuditLog(
+        'FLASH_SALE_UPDATED',
+        sale.title,
+        nextActive ? 'Flash sale enabled on storefront' : 'Flash sale disabled'
+      );
+      toast.success(
+        nextActive
+          ? 'Flash sale enabled and synced across all devices!'
+          : 'Flash sale paused & synced.'
+      );
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to save flash sale settings.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleToggle = (checked: boolean) => {
     setIsActive(checked);
-    const updated = { ...sale, is_active: checked };
-    setSale(updated);
-    try {
-      localStorage.setItem('mw_trends_flash_sale', JSON.stringify(updated));
-      recordAuditLog('FLASH_SALE_TOGGLED', sale.title, checked ? 'Enabled flash sale' : 'Disabled flash sale');
-    } catch {
-      // ignore
-    }
-    toast.success(checked ? 'Flash sale enabled and active on storefront.' : 'Flash sale disabled.');
+    setSale((prev) => ({ ...prev, is_active: checked }));
+    persistFlashSale(checked);
+  };
+
+  const handleSave = () => {
+    persistFlashSale(isActive);
   };
 
   return (
     <div className="space-y-6 select-none max-w-4xl">
       <div className="border-b border-border pb-5">
         <span className="text-xs font-semibold text-gold uppercase tracking-wider block">
-          Urgency &amp; High-Conversion Sales
+          Urgency &amp; Sale Offers
         </span>
         <h1 className="font-serif text-2xl sm:text-3xl font-black text-text-primary">
           Flash Sales Manager
@@ -60,9 +106,13 @@ export default function AdminFlashSalesPage() {
             </div>
             <div>
               <h3 className="font-serif font-bold text-base text-text-primary">
-                {sale.title}
+                {sale.title || 'Sale Campaign'}
               </h3>
-              <p className="text-xs text-text-muted">Slug: /{sale.slug}</p>
+              <div className="flex items-center gap-2 mt-0.5">
+                <Badge variant={isActive ? 'success' : 'default'} size="sm">
+                  {isActive ? 'Live on Storefront' : 'Hidden'}
+                </Badge>
+              </div>
             </div>
           </div>
 
@@ -73,34 +123,30 @@ export default function AdminFlashSalesPage() {
           />
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Input
             label="Campaign Title"
+            placeholder="e.g. Weekend Gift Sale"
             value={sale.title}
             onChange={(e) => setSale({ ...sale, title: e.target.value })}
           />
           <Input
-            label="Description"
+            label="Offer Tagline / Description"
+            placeholder="e.g. Flat 15% off or free gift wrap"
             value={sale.description || ''}
             onChange={(e) => setSale({ ...sale, description: e.target.value })}
           />
-        </div>
-
-        <div className="p-4 rounded-xl bg-elevated/40 border border-border space-y-3 text-xs">
-          <span className="font-bold text-text-primary block">Active Flash Sale Discount Items:</span>
-          <div className="space-y-2">
-            {sale.items?.map((it, idx) => (
-              <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-surface border border-border">
-                <span className="font-medium text-text-primary">Product ID: {it.product_id}</span>
-                <span className="font-serif font-bold text-gold">Flash Price: Rs. {it.flash_price}</span>
-                <Badge variant="success" size="sm">{it.sold_count} Sold</Badge>
-              </div>
-            ))}
-          </div>
+          <Input
+            type="number"
+            label="Countdown Duration (Hours)"
+            min={1}
+            value={durationHours}
+            onChange={(e) => setDurationHours(Number(e.target.value))}
+          />
         </div>
 
         <div className="flex justify-end">
-          <Button variant="gold" size="sm" onClick={() => toast.success('Flash sale schedule saved!')}>
+          <Button type="button" variant="gold" size="sm" onClick={handleSave} isLoading={isSaving}>
             Save Flash Sale Settings
           </Button>
         </div>

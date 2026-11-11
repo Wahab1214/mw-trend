@@ -10,107 +10,83 @@ import { Select } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Pagination } from '@/components/ui/pagination';
 import { EmptyState } from '@/components/ui/empty-state';
-import { INITIAL_PRODUCTS, INITIAL_CATEGORIES, INITIAL_COLLECTIONS } from '@/lib/mock-data';
-import { LayoutGrid, List, SlidersHorizontal, X, Sparkles, Filter } from 'lucide-react';
+import { useCatalog } from '@/lib/store/catalog-context';
+import { LayoutGrid, List, X, Sparkles, Filter } from 'lucide-react';
 
 function ShopContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { categories, products: allProducts } = useCatalog();
 
   // Read URL params
   const categoryParam = searchParams.get('category') || '';
-  const occasionParam = searchParams.get('occasion') || '';
   const queryParam = searchParams.get('q') || '';
   const saleParam = searchParams.get('sale') === 'true';
-  const sortParam = searchParams.get('sort') || 'featured';
+  const sortParam = searchParams.get('sort') || 'newest';
 
   // Local filter states
   const [selectedCategory, setSelectedCategory] = React.useState(categoryParam);
-  const [selectedOccasion, setSelectedOccasion] = React.useState(occasionParam);
   const [searchQuery, setSearchQuery] = React.useState(queryParam);
   const [inStockOnly, setInStockOnly] = React.useState(false);
   const [onSaleOnly, setOnSaleOnly] = React.useState(saleParam);
   const [minPrice, setMinPrice] = React.useState<number>(0);
-  const [maxPrice, setMaxPrice] = React.useState<number>(5000);
+  const [maxPrice, setMaxPrice] = React.useState<number>(10000);
   const [sortBy, setSortBy] = React.useState(sortParam);
   const [viewMode, setViewMode] = React.useState<'grid' | 'list'>('grid');
   const [currentPage, setCurrentPage] = React.useState(1);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = React.useState(false);
-  const [allProducts, setAllProducts] = React.useState(INITIAL_PRODUCTS);
 
-  React.useEffect(() => {
-    try {
-      const stored = localStorage.getItem('mw_trends_products');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const merged = [...parsed];
-          for (const initP of INITIAL_PRODUCTS) {
-            if (!merged.some((m) => m.id === initP.id || m.slug === initP.slug)) {
-              merged.push(initP);
-            }
-          }
-          setAllProducts(merged);
-          return;
-        }
-      }
-    } catch {
-      // ignore
-    }
-    setAllProducts(INITIAL_PRODUCTS);
-  }, []);
-
-  const ITEMS_PER_PAGE = 8;
+  const ITEMS_PER_PAGE = 12;
 
   // Sync state if URL changes
   React.useEffect(() => {
     setSelectedCategory(categoryParam);
-    setSelectedOccasion(occasionParam);
     setSearchQuery(queryParam);
     setOnSaleOnly(saleParam);
     setSortBy(sortParam);
-  }, [categoryParam, occasionParam, queryParam, saleParam, sortParam]);
+  }, [categoryParam, queryParam, saleParam, sortParam]);
 
   // Filter & Sort logic
   const filteredProducts = React.useMemo(() => {
-    return allProducts.filter((product) => {
-      // Category filter
-      if (selectedCategory && product.category_name?.toLowerCase() !== selectedCategory.toLowerCase()) {
-        const catObj = INITIAL_CATEGORIES.find((c) => c.slug === selectedCategory);
-        if (catObj && product.category_id !== catObj.id) return false;
-      }
+    return allProducts
+      .filter((product) => {
+        if (selectedCategory) {
+          const catObj = categories.find((c) => c.slug === selectedCategory);
+          const matchById = catObj && product.category_id === catObj.id;
+          const matchByName =
+            catObj && product.category_name?.toLowerCase() === catObj.name.toLowerCase();
+          if (!matchById && !matchByName) return false;
+        }
 
-      // Search query
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const matchesTitle = product.title.toLowerCase().includes(q);
-        const matchesDesc = product.description.toLowerCase().includes(q);
-        const matchesCat = product.category_name?.toLowerCase().includes(q);
-        if (!matchesTitle && !matchesDesc && !matchesCat) return false;
-      }
+        if (searchQuery.trim()) {
+          const q = searchQuery.toLowerCase();
+          const matchesTitle = product.title.toLowerCase().includes(q);
+          const matchesDesc = product.description.toLowerCase().includes(q);
+          const matchesCat = product.category_name?.toLowerCase().includes(q);
+          if (!matchesTitle && !matchesDesc && !matchesCat) return false;
+        }
 
-      // Stock
-      if (inStockOnly && product.stock_quantity <= 0) return false;
+        if (inStockOnly && product.track_stock && product.stock_quantity <= 0) return false;
 
-      // Sale
-      if (onSaleOnly && (!product.sale_price || product.sale_price >= product.regular_price)) return false;
+        if (onSaleOnly && (!product.sale_price || product.sale_price >= product.regular_price)) {
+          return false;
+        }
 
-      // Price range
-      const effectivePrice = product.sale_price || product.regular_price;
-      if (effectivePrice < minPrice || effectivePrice > maxPrice) return false;
+        const effectivePrice = product.sale_price || product.regular_price;
+        if (effectivePrice < minPrice || effectivePrice > maxPrice) return false;
 
-      return true;
-    }).sort((a, b) => {
-      const priceA = a.sale_price || a.regular_price;
-      const priceB = b.sale_price || b.regular_price;
+        return true;
+      })
+      .sort((a, b) => {
+        const priceA = a.sale_price || a.regular_price;
+        const priceB = b.sale_price || b.regular_price;
 
-      if (sortBy === 'price-asc') return priceA - priceB;
-      if (sortBy === 'price-desc') return priceB - priceA;
-      if (sortBy === 'rating') return b.rating_average - a.rating_average;
-      if (sortBy === 'newest') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      return b.sales_count - a.sales_count; // default best sellers
-    });
-  }, [allProducts, selectedCategory, searchQuery, inStockOnly, onSaleOnly, minPrice, maxPrice, sortBy]);
+        if (sortBy === 'price-asc') return priceA - priceB;
+        if (sortBy === 'price-desc') return priceB - priceA;
+        if (sortBy === 'featured') return Number(b.is_featured) - Number(a.is_featured);
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+  }, [allProducts, categories, selectedCategory, searchQuery, inStockOnly, onSaleOnly, minPrice, maxPrice, sortBy]);
 
   // Paginated items
   const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
@@ -121,13 +97,12 @@ function ShopContent() {
 
   const resetFilters = () => {
     setSelectedCategory('');
-    setSelectedOccasion('');
     setSearchQuery('');
     setInStockOnly(false);
     setOnSaleOnly(false);
     setMinPrice(0);
-    setMaxPrice(5000);
-    setSortBy('featured');
+    setMaxPrice(10000);
+    setSortBy('newest');
     setCurrentPage(1);
     router.push('/shop');
   };
@@ -151,7 +126,7 @@ function ShopContent() {
           </span>
           <h1 className="font-serif text-2xl sm:text-4xl font-black text-text-primary mt-1">
             {selectedCategory
-              ? INITIAL_CATEGORIES.find((c) => c.slug === selectedCategory)?.name || 'Custom Gifts'
+              ? categories.find((c) => c.slug === selectedCategory)?.name || 'Custom Gifts'
               : 'All Personalized Gifts'}
           </h1>
           <p className="text-xs sm:text-sm text-text-secondary mt-1">
@@ -178,11 +153,10 @@ function ShopContent() {
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
               options={[
-                { value: 'featured', label: 'Best Selling' },
-                { value: 'newest', label: 'Newest Releases' },
+                { value: 'newest', label: 'Newest First' },
+                { value: 'featured', label: 'Featured' },
                 { value: 'price-asc', label: 'Price: Low to High' },
                 { value: 'price-desc', label: 'Price: High to Low' },
-                { value: 'rating', label: 'Customer Rating' },
               ]}
             />
           </div>
@@ -261,8 +235,8 @@ function ShopContent() {
                 </button>
               )}
             </div>
-            <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
-              {INITIAL_CATEGORIES.map((cat) => (
+            <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
+              {categories.map((cat) => (
                 <button
                   key={cat.id}
                   onClick={() => {
@@ -276,7 +250,7 @@ function ShopContent() {
                   }`}
                 >
                   <span>{cat.name}</span>
-                  <span className="text-[10px] text-text-muted">{cat.product_count}</span>
+                  <span className="text-[10px] text-text-muted">{cat.product_count ?? 0}</span>
                 </button>
               ))}
             </div>

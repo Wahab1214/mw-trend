@@ -11,7 +11,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/toast';
 import { slugify } from '@/lib/utils';
-import { INITIAL_CATEGORIES, INITIAL_PRODUCTS } from '@/lib/mock-data';
+import { INITIAL_CATEGORIES } from '@/lib/mock-data';
+import { createProductApi, createCategoryApi } from '@/lib/catalog-client';
+import { useCatalog } from '@/lib/store/catalog-context';
 import { recordAuditLog } from '@/lib/audit';
 import { PaymentMethod, MockupType, ProductImage } from '@/types';
 import { ProductImageUploader } from '@/components/admin/product-image-uploader';
@@ -29,6 +31,7 @@ import {
 export default function NewProductPage() {
   const router = useRouter();
   const toast = useToast();
+  const { refreshCatalog } = useCatalog();
 
   // Basic Information
   const [title, setTitle] = React.useState('');
@@ -41,45 +44,38 @@ export default function NewProductPage() {
   const [shortDesc, setShortDesc] = React.useState('');
   const [description, setDescription] = React.useState('');
   const [images, setImages] = React.useState<ProductImage[]>([]);
+  const [isSaving, setIsSaving] = React.useState(false);
 
-  // Load any custom categories from localStorage
+  // Load categories from database
   React.useEffect(() => {
-    try {
-      const stored = localStorage.getItem('mw_trends_categories');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        setCategoriesList(parsed);
-      }
-    } catch {
-      // ignore
-    }
+    import('@/lib/catalog-client')
+      .then(({ fetchCategoriesApi }) => fetchCategoriesApi())
+      .then((cats) => {
+        if (cats?.length) {
+          setCategoriesList(cats);
+          setCategory((prev) => (cats.some((c) => c.id === prev) ? prev : cats[0].id));
+        }
+      })
+      .catch(() => {});
   }, []);
 
-  const handleCreateCategory = () => {
+  const handleCreateCategory = async () => {
     if (!customCategoryName.trim()) return;
     const cleanName = customCategoryName.trim();
-    const newCat = {
-      id: `cat_${Date.now()}`,
-      name: cleanName,
-      slug: slugify(cleanName),
-      description: `Custom personalized items under ${cleanName}`,
-      image_url: '',
-      sort_order: categoriesList.length + 1,
-      is_active: true,
-      is_featured: false,
-      product_count: 0,
-    };
-    const updated = [...categoriesList, newCat];
-    setCategoriesList(updated);
-    setCategory(newCat.id);
     try {
-      localStorage.setItem('mw_trends_categories', JSON.stringify(updated));
-    } catch {
-      // ignore
+      const newCat = await createCategoryApi({
+        name: cleanName,
+        description: `Personalized items under ${cleanName}`,
+      });
+      setCategoriesList((prev) => [...prev, newCat]);
+      setCategory(newCat.id);
+      await refreshCatalog();
+      setCustomCategoryName('');
+      setShowNewCategoryInput(false);
+      toast.success(`Category "${newCat.name}" created and synced!`);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to create category.');
     }
-    setCustomCategoryName('');
-    setShowNewCategoryInput(false);
-    toast.success(`Category "${newCat.name}" created and selected!`);
   };
 
   // Pricing & Profit
@@ -90,7 +86,7 @@ export default function NewProductPage() {
 
   // Customization
   const [hasCustomization, setHasCustomization] = React.useState(true);
-  const [mockupType, setMockupType] = React.useState<MockupType>('mug');
+  const [mockupType, setMockupType] = React.useState<MockupType>('none');
   const [allowCustomerUpload, setAllowCustomerUpload] = React.useState(false);
 
   // Allowed Payment Methods
@@ -134,70 +130,55 @@ export default function NewProductPage() {
     return { checks, score };
   }, [title, focusKeyword, seoDescription, slug]);
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
       toast.error('Product title is required.');
       return;
     }
 
-    const finalSlug = slug.trim() || slugify(title);
-    const selectedCatObj = categoriesList.find((c) => c.id === category || c.slug === category);
-    const catName = selectedCatObj ? selectedCatObj.name : (category || 'Love Cards');
-
-    const newProduct: any = {
-      id: `prod_${Date.now()}`,
-      title: title.trim(),
-      slug: finalSlug,
-      sku: sku.trim() || `MW-${Date.now().toString().slice(-6)}`,
-      short_description: shortDesc,
-      description: description,
-      category_id: selectedCatObj ? selectedCatObj.id : category,
-      category_name: catName,
-      base_cost_price: Number(baseCostPrice) || 0,
-      regular_price: Number(regularPrice) || 0,
-      sale_price: salePrice ? Number(salePrice) : undefined,
-      stock_quantity: Number(stock) || 0,
-      low_stock_threshold: 5,
-      track_stock: true,
-      is_published: true,
-      is_featured: false,
-      is_trending: true,
-      is_new: true,
-      allowed_payment_methods: allowedMethods,
-      weight_kg: 0.5,
-      has_customization: hasCustomization,
-      mockup_type: mockupType,
-      images: images.length > 0
-        ? images
-        : [
-            {
-              id: `img_${Date.now()}`,
-              product_id: `prod_${Date.now()}`,
-              image_url: '/brand/monogram.svg',
-              sort_order: 1,
-              is_primary: true,
-            },
-          ],
-      rating_average: 5.0,
-      rating_count: 0,
-      sales_count: 0,
-      seo_title: seoTitle,
-      seo_description: seoDescription,
-      focus_keyword: focusKeyword,
-    };
-
+    setIsSaving(true);
     try {
-      const stored = localStorage.getItem('mw_trends_products');
-      const existing = stored ? JSON.parse(stored) : [];
-      localStorage.setItem('mw_trends_products', JSON.stringify([newProduct, ...existing]));
-      recordAuditLog('PRODUCT_CREATED', title, `Created new product with SKU: ${sku}`);
-    } catch {
-      // ignore
-    }
+      const finalSlug = slug.trim() || slugify(title);
+      const selectedCatObj = categoriesList.find((c) => c.id === category || c.slug === category);
 
-    toast.success(`Product "${title}" added to your live catalog!`, 'Catalog Updated');
-    router.push('/admin/products');
+      await createProductApi({
+        title: title.trim(),
+        slug: finalSlug,
+        sku: sku.trim() || `MW-${Date.now().toString().slice(-6)}`,
+        short_description: shortDesc,
+        description: description || title.trim(),
+        category_id: selectedCatObj ? selectedCatObj.id : category,
+        base_cost_price: Number(baseCostPrice) || 0,
+        regular_price: Number(regularPrice) || 0,
+        sale_price: salePrice > 0 ? Number(salePrice) : undefined,
+        stock_quantity: Number(stock) || 0,
+        low_stock_threshold: 5,
+        track_stock: true,
+        is_published: true,
+        is_featured: false,
+        is_trending: true,
+        is_new: true,
+        allowed_payment_methods: allowedMethods,
+        weight_kg: 0.5,
+        has_customization: hasCustomization,
+        mockup_type: mockupType,
+        allow_customer_upload: allowCustomerUpload,
+        images,
+        seo_title: seoTitle,
+        seo_description: seoDescription,
+        focus_keyword: focusKeyword,
+      });
+
+      await refreshCatalog();
+      recordAuditLog('PRODUCT_CREATED', title, `Created new product with SKU: ${sku}`);
+      toast.success(`Product "${title}" published & synced across all devices!`, 'Catalog Updated');
+      router.push('/admin/products');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to publish product to database.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -213,12 +194,12 @@ export default function NewProductPage() {
               Create New Product
             </h1>
             <p className="text-xs text-text-muted">
-              Add a print-on-demand product with live 3D preview &amp; custom fields
+              Add a personalized product synced to the live catalog across all devices
             </p>
           </div>
         </div>
 
-        <Button type="submit" variant="gold" size="md" className="font-bold uppercase tracking-wider text-xs">
+        <Button type="submit" variant="gold" size="md" isLoading={isSaving} className="font-bold uppercase tracking-wider text-xs">
           Publish Product
         </Button>
       </div>
@@ -339,17 +320,14 @@ export default function NewProductPage() {
             {hasCustomization && (
               <div className="space-y-4 pt-1">
                 <Select
-                  label="Mockup Template Layer"
+                  label="Customization Preview Style"
                   value={mockupType}
                   onChange={(e) => setMockupType(e.target.value as MockupType)}
                   options={[
-                    { value: 'mug', label: 'Ceramic Drinkware Mug (Gold Foil Monogram)' },
-                    { value: 'pen', label: 'Executive Rollerball Pen (Laser Etched)' },
-                    { value: 'tshirt', label: '240 GSM Streetwear T-Shirt (Chest Print)' },
-                    { value: 'hoodie', label: '360 GSM Fleece Hoodie (Embroidered)' },
-                    { value: 'cap', label: 'Vintage Washed Cap (Arched 3D Stitching)' },
-                    { value: 'phone_case', label: 'Impact Phone Case (Calligraphy Monogram)' },
-                    { value: 'card', label: 'Greeting Card (Gold Calligraphy + Wax Seal)' },
+                    { value: 'none', label: 'Studio Photos Only (Frames, Wallets, Jewelry, Booklets)' },
+                    { value: 'card', label: 'Greeting / Love / Identity Card Preview' },
+                    { value: 'mug', label: 'Custom Ceramic Mug Preview' },
+                    { value: 'pen', label: 'Engraved Executive Pen Preview' },
                   ]}
                 />
 

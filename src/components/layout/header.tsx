@@ -4,79 +4,64 @@ import * as React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { Search, ShoppingBag, Heart, User, Menu, X, Compass, PackageCheck } from 'lucide-react';
 import { useCart } from '@/lib/store/cart-context';
 import { useWishlist } from '@/lib/store/wishlist-context';
+import { useCatalog } from '@/lib/store/catalog-context';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
-import { cn } from '@/lib/utils';
 import { Modal } from '@/components/ui/modal';
 import { Input } from '@/components/ui/input';
-import { INITIAL_PRODUCTS } from '@/lib/mock-data';
+import { cn } from '@/lib/utils';
+import { Search, ShoppingBag, Heart, Menu, X } from 'lucide-react';
 
 export function Header() {
   const pathname = usePathname();
   const { itemCount, openCart } = useCart();
   const { count: wishlistCount } = useWishlist();
+  const { categories, products } = useCatalog();
 
+  const [isScrolled, setIsScrolled] = React.useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const [isSearchOpen, setIsSearchOpen] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState('');
-  const [scrolled, setScrolled] = React.useState(false);
 
   React.useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 15);
-    };
+    const handleScroll = () => setIsScrolled(window.scrollY > 10);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const [allProducts, setAllProducts] = React.useState<any[]>([]);
-
-  React.useEffect(() => {
-    try {
-      const stored = localStorage.getItem('mw_trends_products');
-      if (stored) {
-        setAllProducts(JSON.parse(stored));
-      }
-    } catch {
-      // ignore
-    }
-  }, []);
-
-  // Filter search results
-  const searchResults = React.useMemo(() => {
-    if (!searchQuery.trim()) return [];
-    const query = searchQuery.toLowerCase();
-    return allProducts.filter(
-      (p) =>
-        p.title.toLowerCase().includes(query) ||
-        p.category_name?.toLowerCase().includes(query) ||
-        p.description.toLowerCase().includes(query)
-    ).slice(0, 5);
-  }, [searchQuery, allProducts]);
-
-  const navLinks = [
-    { label: 'Shop All', href: '/shop' },
-    { label: 'Custom Mugs', href: '/category/custom-mugs' },
-    { label: 'Luxury Pens', href: '/category/luxury-pens' },
-    { label: 'Apparel', href: '/category/apparel-t-shirts' },
-    { label: 'Love Cards', href: '/category/love-cards' },
-    { label: 'Gift Finder', href: '/gift-finder', highlight: true },
-    { label: 'Track Order', href: '/track-order' },
-  ];
-
-  // Hide storefront header completely on admin studio and login pages
   if (pathname?.startsWith('/admin')) {
     return null;
   }
+
+  const navLinks = [
+    { label: 'Shop All', href: '/shop' },
+    ...categories.slice(0, 4).map((cat) => ({
+      label: cat.name,
+      href: `/category/${cat.slug}`,
+    })),
+    { label: 'Track Order', href: '/track-order' },
+  ];
+
+  const searchResults = searchQuery.trim()
+    ? products
+        .filter(
+          (p) =>
+            p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            p.category_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            p.short_description?.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+        .slice(0, 6)
+    : [];
 
   return (
     <>
       <header
         className={cn(
-          'sticky top-0 z-40 w-full transition-all duration-300 border-b border-border/60 bg-surface/90 backdrop-blur-md',
-          scrolled && 'shadow-sm border-border'
+          'sticky top-0 z-40 w-full transition-all duration-300 border-b select-none',
+          isScrolled
+            ? 'bg-background/95 backdrop-blur-md border-border shadow-md'
+            : 'bg-background border-border/60'
         )}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -126,11 +111,9 @@ export function Header() {
                     key={link.href}
                     href={link.href}
                     className={cn(
-                      'px-3 py-1.5 text-xs xl:text-sm font-medium rounded-lg transition-colors duration-150',
-                      link.highlight
-                        ? 'text-gold hover:text-gold-light font-semibold bg-gold/10 hover:bg-gold/15'
-                        : isActive
-                        ? 'text-gold font-semibold'
+                      'px-3 py-1.5 text-xs xl:text-sm font-medium rounded-lg transition-colors duration-150 whitespace-nowrap',
+                      isActive
+                        ? 'text-gold font-semibold bg-gold/10'
                         : 'text-text-secondary hover:text-text-primary hover:bg-elevated/50'
                     )}
                   >
@@ -140,55 +123,41 @@ export function Header() {
               })}
             </nav>
 
-            {/* Action Icons */}
-            <div className="flex items-center space-x-1 sm:space-x-2">
-              {/* Search Toggle */}
+            {/* Right Utility Icons */}
+            <div className="flex items-center gap-1 sm:gap-2">
               <button
                 type="button"
                 onClick={() => setIsSearchOpen(true)}
-                className="p-2 rounded-lg text-text-secondary hover:text-gold hover:bg-elevated transition-colors"
-                aria-label="Search catalog"
+                className="p-2 rounded-lg text-text-secondary hover:text-gold hover:bg-elevated/60 transition-colors"
+                aria-label="Search products"
               >
                 <Search className="w-5 h-5" />
               </button>
 
-              {/* Theme Toggle */}
               <ThemeToggle />
 
-              {/* Wishlist */}
               <Link
                 href="/wishlist"
-                className="relative p-2 rounded-lg text-text-secondary hover:text-gold hover:bg-elevated transition-colors hidden sm:flex"
-                aria-label="View wishlist"
+                className="relative p-2 rounded-lg text-text-secondary hover:text-gold hover:bg-elevated/60 transition-colors hidden sm:inline-flex"
+                aria-label="Wishlist"
               >
                 <Heart className="w-5 h-5" />
                 {wishlistCount > 0 && (
-                  <span className="absolute top-1 right-1 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-gold text-[10px] font-bold text-black">
+                  <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-gold text-[10px] font-bold text-black shadow-sm">
                     {wishlistCount}
                   </span>
                 )}
               </Link>
 
-              {/* Customer Account / Order Tracking */}
-              <Link
-                href="/track-order"
-                className="p-2 rounded-lg text-text-secondary hover:text-gold hover:bg-elevated transition-colors hidden sm:flex"
-                aria-label="Track Your Order"
-                title="Track Your Order"
-              >
-                <User className="w-5 h-5" />
-              </Link>
-
-              {/* Cart Drawer Trigger */}
               <button
                 type="button"
                 onClick={openCart}
-                className="relative p-2 rounded-lg text-text-secondary hover:text-gold hover:bg-elevated transition-colors"
-                aria-label="Open Shopping Bag"
+                className="relative p-2 rounded-lg text-text-secondary hover:text-gold hover:bg-elevated/60 transition-colors"
+                aria-label="Shopping cart"
               >
                 <ShoppingBag className="w-5 h-5" />
                 {itemCount > 0 && (
-                  <span className="absolute top-1 right-1 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-gold text-[10px] font-bold text-black">
+                  <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-gold text-[10px] font-bold text-black shadow-sm animate-in zoom-in-75">
                     {itemCount}
                   </span>
                 )}
@@ -197,100 +166,121 @@ export function Header() {
           </div>
         </div>
 
-        {/* Mobile Navigation Dropdown */}
+        {/* Mobile Navigation Drawer */}
         {isMobileMenuOpen && (
-          <div className="lg:hidden border-t border-border bg-surface px-4 py-3 space-y-1 animate-in slide-in-from-top-2 duration-200">
-            {navLinks.map((link) => (
+          <div className="lg:hidden border-t border-border bg-surface px-4 py-4 space-y-2 animate-in slide-in-from-top-2 duration-200">
+            <Link
+              href="/shop"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="block px-3 py-2.5 rounded-lg text-sm font-semibold text-text-primary hover:text-gold hover:bg-elevated transition-colors"
+            >
+              Shop All Products
+            </Link>
+            {categories.map((cat) => (
               <Link
-                key={link.href}
-                href={link.href}
+                key={cat.id}
+                href={`/category/${cat.slug}`}
                 onClick={() => setIsMobileMenuOpen(false)}
-                className={cn(
-                  'block px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                  pathname === link.href ? 'bg-gold/15 text-gold font-bold' : 'text-text-primary hover:bg-elevated'
-                )}
+                className="block px-3 py-2 rounded-lg text-sm font-medium text-text-secondary hover:text-gold hover:bg-elevated transition-colors"
               >
-                {link.label}
+                {cat.name}
               </Link>
             ))}
-            <div className="pt-2 border-t border-border/60 flex items-center justify-between text-xs text-text-muted px-3">
+            <div className="pt-2 border-t border-border flex items-center justify-between px-3">
               <Link
                 href="/track-order"
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="text-text-secondary hover:text-gold font-medium flex items-center gap-1.5 py-1"
+                className="text-xs font-semibold text-gold hover:underline"
               >
-                <PackageCheck className="w-4 h-4" />
-                Track Your Order
+                Track Order
+              </Link>
+              <Link
+                href="/wishlist"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="text-xs text-text-secondary hover:text-gold flex items-center gap-1"
+              >
+                <Heart className="w-3.5 h-3.5" /> Wishlist ({wishlistCount})
               </Link>
             </div>
           </div>
         )}
       </header>
 
-      {/* Instant Search Modal */}
+      {/* Search Modal */}
       <Modal
         isOpen={isSearchOpen}
-        onClose={() => {
-          setIsSearchOpen(false);
-          setSearchQuery('');
-        }}
-        title="Search Gifts & Collections"
+        onClose={() => setIsSearchOpen(false)}
+        title="Search MW Trends Catalog"
         size="lg"
       >
         <div className="space-y-4">
-          <Input
-            autoFocus
-            type="search"
-            placeholder="Search mugs, pens, shirts, cards, hoodies..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="text-base py-3 h-12"
-          />
+          <div className="relative">
+            <Search className="w-4 h-4 text-gold absolute left-3.5 top-3.5 pointer-events-none" />
+            <Input
+              placeholder="Search cards, frames, Nikkah booklets, pens, mugs, wallets..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+              autoFocus
+            />
+          </div>
 
           {searchQuery.trim() && (
-            <div className="space-y-2 mt-4">
-              <div className="text-xs font-semibold text-text-muted uppercase tracking-wider">
-                Products ({searchResults.length})
-              </div>
+            <div className="space-y-2 max-h-[360px] overflow-y-auto pt-2">
+              <span className="text-xs font-semibold text-text-muted uppercase tracking-wider block">
+                Results ({searchResults.length})
+              </span>
 
               {searchResults.length === 0 ? (
-                <p className="text-sm text-text-secondary py-4 text-center">
-                  No personalized gifts found matching &quot;{searchQuery}&quot;. Try searching for &quot;mug&quot;, &quot;pen&quot;, or &quot;card&quot;.
+                <p className="text-sm text-text-muted py-6 text-center">
+                  No personalized products found matching &quot;{searchQuery}&quot;.
                 </p>
               ) : (
                 <div className="divide-y divide-border/60">
-                  {searchResults.map((product) => (
-                    <Link
-                      key={product.id}
-                      href={`/product/${product.slug}`}
-                      onClick={() => {
-                        setIsSearchOpen(false);
-                        setSearchQuery('');
-                      }}
-                      className="flex items-center gap-3 py-2.5 px-2 hover:bg-elevated rounded-lg transition-colors group"
-                    >
-                      <div className="w-12 h-12 rounded-lg bg-elevated overflow-hidden shrink-0">
-                        {product.images[0] && (
-                          <Image
-                            src={product.images[0].image_url}
-                            alt={product.title}
-                            width={48}
-                            height={48}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                          />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="text-sm font-medium text-text-primary group-hover:text-gold transition-colors truncate">
-                          {product.title}
-                        </h4>
-                        <p className="text-xs text-text-muted">{product.category_name}</p>
-                      </div>
-                      <div className="text-sm font-serif font-bold text-gold">
-                        Rs. {product.sale_price || product.regular_price}
-                      </div>
-                    </Link>
-                  ))}
+                  {searchResults.map((product) => {
+                    const thumb = product.images?.[0]?.image_url;
+                    return (
+                      <Link
+                        key={product.id}
+                        href={`/product/${product.slug}`}
+                        onClick={() => {
+                          setIsSearchOpen(false);
+                          setSearchQuery('');
+                        }}
+                        className="flex items-center gap-3 py-2.5 px-2 hover:bg-elevated rounded-lg transition-colors group"
+                      >
+                        <div className="w-12 h-12 rounded-lg bg-black border border-border overflow-hidden shrink-0 flex items-center justify-center">
+                          {thumb ? (
+                            <Image
+                              src={thumb}
+                              alt={product.title}
+                              width={48}
+                              height={48}
+                              unoptimized={thumb.startsWith('data:')}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                            />
+                          ) : (
+                            <Image
+                              src="/brand/monogram.svg"
+                              alt="MW Trends"
+                              width={24}
+                              height={24}
+                              className="object-contain opacity-70"
+                            />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-sm font-medium text-text-primary group-hover:text-gold transition-colors truncate">
+                            {product.title}
+                          </h4>
+                          <p className="text-xs text-text-muted">{product.category_name}</p>
+                        </div>
+                        <div className="text-sm font-serif font-bold text-gold whitespace-nowrap">
+                          Rs. {product.sale_price || product.regular_price}
+                        </div>
+                      </Link>
+                    );
+                  })}
                 </div>
               )}
 
@@ -312,18 +302,24 @@ export function Header() {
                 Popular Searches
               </span>
               <div className="flex flex-wrap gap-2">
-                {['Custom Gold Mug', 'Engraved Pen', 'Anniversary Card', 'Streetwear Tee', 'Impact Phone Case', 'Dad Cap'].map(
-                  (term) => (
-                    <button
-                      key={term}
-                      type="button"
-                      onClick={() => setSearchQuery(term)}
-                      className="text-xs px-3 py-1.5 rounded-full bg-elevated hover:bg-gold/20 hover:text-gold transition-colors text-text-secondary"
-                    >
-                      {term}
-                    </button>
-                  )
-                )}
+                {[
+                  'Love Identity Card',
+                  'Spotify Frame',
+                  'Magic Mirror',
+                  'Nikkah Booklet',
+                  'Wooden Pen',
+                  'Photo Mug',
+                  'Wallet',
+                ].map((term) => (
+                  <button
+                    key={term}
+                    type="button"
+                    onClick={() => setSearchQuery(term)}
+                    className="text-xs px-3 py-1.5 rounded-full bg-elevated hover:bg-gold/20 hover:text-gold transition-colors text-text-secondary"
+                  >
+                    {term}
+                  </button>
+                ))}
               </div>
             </div>
           )}

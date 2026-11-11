@@ -2,23 +2,12 @@
 
 import * as React from 'react';
 import { Rating } from '@/components/ui/rating';
-import { Review } from '@/types';
 import { ShieldCheck, Quote, Sparkles } from 'lucide-react';
+import { useCatalog } from '@/lib/store/catalog-context';
 
 export function TestimonialsSection() {
-  const [reviews, setReviews] = React.useState<Review[]>([]);
-
-  React.useEffect(() => {
-    try {
-      const stored = localStorage.getItem('mw_trends_reviews');
-      if (stored) {
-        const list = JSON.parse(stored);
-        setReviews(list.filter((r: Review) => r.is_approved && r.is_featured));
-      }
-    } catch {
-      // ignore
-    }
-  }, []);
+  const { reviews: allReviews } = useCatalog();
+  const reviews = allReviews.filter((r) => r.is_approved && r.is_featured);
 
   if (reviews.length === 0) {
     return null;

@@ -7,8 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { ORDER_STATUS_CONFIG } from '@/lib/constants';
 import { Order, OrderStatus } from '@/types';
-import { INITIAL_ORDERS } from '@/lib/mock-data';
 import { formatPKR, formatDate } from '@/lib/utils';
+import { trackOrderApi } from '@/lib/catalog-client';
 import {
   Search,
   Truck,
@@ -29,36 +29,27 @@ function TrackOrderContent() {
   const [phoneNumber, setPhoneNumber] = React.useState(initialPhone);
   const [searchedOrder, setSearchedOrder] = React.useState<Order | null>(null);
   const [hasSearched, setHasSearched] = React.useState(false);
+  const [isSearching, setIsSearching] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState('');
 
-  const performLookup = React.useCallback((num: string, ph: string) => {
+  const performLookup = React.useCallback(async (num: string, ph: string) => {
     setHasSearched(true);
     setErrorMessage('');
+    setIsSearching(true);
 
-    const cleanNum = num.trim().toUpperCase();
-    const cleanPh = ph.trim().replace(/[\s-]/g, '');
-
-    // Search local storage first
-    let foundOrder: any = null;
     try {
-      const storedStr = localStorage.getItem('mw_trends_customer_orders');
-      if (storedStr) {
-        const stored = JSON.parse(storedStr);
-        foundOrder = stored.find(
-          (o: any) =>
-            o.order_number.toUpperCase() === cleanNum ||
-            (cleanPh && o.customer_phone.includes(cleanPh))
-        );
+      const foundOrder = await trackOrderApi(num.trim().toUpperCase(), ph.trim());
+      if (foundOrder) {
+        setSearchedOrder(foundOrder);
+      } else {
+        setSearchedOrder(null);
+        setErrorMessage(`No order found matching "${num}". Please double check your order number.`);
       }
-    } catch {
-      // ignore
-    }
-
-    if (foundOrder) {
-      setSearchedOrder(foundOrder);
-    } else {
+    } catch (err: any) {
       setSearchedOrder(null);
-      setErrorMessage(`No order found matching "${num}". Please double check your order number.`);
+      setErrorMessage(err?.message || 'Unable to verify order details right now.');
+    } finally {
+      setIsSearching(false);
     }
   }, []);
 

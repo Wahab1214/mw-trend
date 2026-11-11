@@ -8,39 +8,39 @@ export default function FAQPage() {
   const faqItems = [
     {
       id: 'faq-1',
-      title: 'How does live customization work?',
+      title: 'How do I personalize my gift?',
       content:
-        'When you select a product like our Royal Gold Monogram Mug or Laser-Engraved Pen, you can type your recipient name, select font choices, and customize the text color. Our interactive 3D canvas displays a real-time preview of how the printed or etched item will look. What you see is what our studio crafts.',
+        'Select your desired item, fill in the name, date, or custom details on the product page, and place your order. You can also send high-resolution pictures directly to our official WhatsApp (+92 337 0566870) with your order reference.',
     },
     {
       id: 'faq-2',
       title: 'Do you offer Cash on Delivery (COD) across Pakistan?',
       content:
-        'Yes! We offer 100% verified Cash on Delivery across more than 250+ cities, towns, and districts in Pakistan including Lahore, Karachi, Islamabad, Rawalpindi, Faisalabad, Multan, and Peshawar.',
+        'Yes! We offer Cash on Delivery across major and remote cities in Pakistan including Lahore, Karachi, Islamabad, Rawalpindi, Faisalabad, Multan, and Peshawar.',
     },
     {
       id: 'faq-3',
-      title: 'How long does printing and delivery take?',
+      title: 'How long does customization and delivery take?',
       content:
-        'Because each item is customized with precision, production takes 24 hours. Courier dispatch via TCS or Leopards takes 1-2 business days for major metropolitan hubs and 2-3 days for other regions.',
+        'Production typically takes 24 to 48 hours after confirmation, and courier dispatch across Pakistan takes 2 to 4 business days.',
     },
     {
       id: 'faq-4',
-      title: 'What if my ceramic mug or gift arrives damaged?',
+      title: 'What if my frame or mug arrives damaged?',
       content:
-        'We have a 100% Zero-Risk Arrival Guarantee. If your order arrives chipped or damaged in transit, simply snap a quick photo and WhatsApp our support team at +92 300 1234567 within 48 hours for an immediate free reprint and express replacement.',
+        'If an order arrives damaged in transit, please share a quick photo with our WhatsApp support team (+92 337 0566870) within 48 hours for a prompt replacement.',
     },
     {
       id: 'faq-5',
-      title: 'Can I pay via JazzCash, Easypaisa, or Online Bank Transfer?',
+      title: 'Can I pay via JazzCash, Easypaisa, or Bank Transfer?',
       content:
-        'Absolutely. We accept manual verification payments via JazzCash Mobile/Till, Easypaisa, and Meezan Bank (Raast ID). Enter your Transaction ID (TID) at checkout and our finance team verifies it instantly.',
+        'Yes. Alongside Cash on Delivery, we accept JazzCash, Easypaisa, and Bank Transfer. You can enter your Transaction ID (TID) or upload a screenshot during checkout.',
     },
     {
       id: 'faq-6',
-      title: 'Do you offer corporate or bulk gift discounts?',
+      title: 'Do you accept bulk wedding or corporate gift orders?',
       content:
-        'Yes, for corporate branding (custom company logo on mugs, hoodies, or pens for 20+ units), please message us directly on WhatsApp or submit the contact form for wholesale tier pricing.',
+        'Yes, for custom wedding favors (Mayon/Mehndi cards, Nikkah booklets) or corporate engraved pens and mugs, contact us on WhatsApp (+92 337 0566870) for bulk rates.',
     },
   ];
 

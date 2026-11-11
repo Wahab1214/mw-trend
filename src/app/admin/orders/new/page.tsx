@@ -9,14 +9,17 @@ import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/toast';
 import { INITIAL_PRODUCTS } from '@/lib/mock-data';
+import { createOrderApi, fetchCatalogData } from '@/lib/catalog-client';
 import { PAKISTAN_MAJOR_CITIES } from '@/lib/constants';
 import { generateOrderNumber, formatPKR } from '@/lib/utils';
+import { Product } from '@/types';
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 
 export default function NewManualOrderPage() {
   const router = useRouter();
   const toast = useToast();
 
+  const [products, setProducts] = React.useState<Product[]>(INITIAL_PRODUCTS);
   const [customerName, setCustomerName] = React.useState('');
   const [customerPhone, setCustomerPhone] = React.useState('');
   const [shippingCity, setShippingCity] = React.useState<string>(PAKISTAN_MAJOR_CITIES[0]);
@@ -24,16 +27,32 @@ export default function NewManualOrderPage() {
   const [orderSource, setOrderSource] = React.useState('WhatsApp');
   const [paymentMethod, setPaymentMethod] = React.useState('COD');
   const [shippingFee, setShippingFee] = React.useState<number>(200);
+  const [isSaving, setIsSaving] = React.useState(false);
 
   // Selected order items
   const [orderItems, setOrderItems] = React.useState<
     { productId: string; quantity: number; customText: string }[]
   >([{ productId: INITIAL_PRODUCTS[0]?.id || '', quantity: 1, customText: '' }]);
 
+  React.useEffect(() => {
+    fetchCatalogData(true)
+      .then((res) => {
+        if (res.products?.length) {
+          setProducts(res.products);
+          setOrderItems((prev) =>
+            prev.map((item) =>
+              item.productId ? item : { ...item, productId: res.products[0].id }
+            )
+          );
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const handleAddItem = () => {
     setOrderItems((prev) => [
       ...prev,
-      { productId: INITIAL_PRODUCTS[0]?.id || '', quantity: 1, customText: '' },
+      { productId: products[0]?.id || '', quantity: 1, customText: '' },
     ]);
   };
 
@@ -42,69 +61,61 @@ export default function NewManualOrderPage() {
   };
 
   const subtotal = orderItems.reduce((acc, it) => {
-    const prod = INITIAL_PRODUCTS.find((p) => p.id === it.productId);
+    const prod = products.find((p) => p.id === it.productId);
     const price = prod?.sale_price || prod?.regular_price || 0;
     return acc + price * it.quantity;
   }, 0);
 
   const total = subtotal + shippingFee;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!customerName.trim() || !customerPhone.trim() || !shippingAddress.trim()) {
       toast.error('Please enter customer name, phone, and complete delivery address.');
       return;
     }
 
-    const orderNumber = generateOrderNumber();
-    const newOrder = {
-      id: `ord_${Date.now()}`,
-      order_number: orderNumber,
-      customer_name: customerName,
-      customer_phone: customerPhone,
-      shipping_city: shippingCity,
-      shipping_address: shippingAddress,
-      order_source: orderSource,
-      subtotal,
-      shipping_fee: shippingFee,
-      discount_amount: 0,
-      gift_wrap_fee: 0,
-      total_amount: total,
-      total_cost_price: subtotal * 0.4,
-      courier_cost: 180,
-      packaging_ad_expense: 80,
-      net_profit: total - (subtotal * 0.4 + 180 + 80),
-      status: 'Confirmed',
-      payment_method: paymentMethod,
-      payment_status: paymentMethod === 'COD' ? 'pending' : 'verified',
-      created_at: new Date().toISOString(),
-      items: orderItems.map((it, idx) => {
-        const prod = INITIAL_PRODUCTS.find((p) => p.id === it.productId);
-        const price = prod?.sale_price || prod?.regular_price || 0;
-        return {
-          id: `item_${idx}_${Date.now()}`,
-          product_title: prod?.title || 'Personalized Gift',
-          sku: prod?.sku,
-          unit_price: price,
-          unit_cost: prod?.base_cost_price || 400,
-          quantity: it.quantity,
-          line_total: price * it.quantity,
-          customization_data: it.customText ? { name_text: it.customText } : undefined,
-        };
-      }),
-    };
-
-    // Save to localStorage
+    setIsSaving(true);
     try {
-      const stored = localStorage.getItem('mw_trends_customer_orders') || '[]';
-      const parsed = JSON.parse(stored);
-      localStorage.setItem('mw_trends_customer_orders', JSON.stringify([newOrder, ...parsed]));
-    } catch {
-      // ignore
-    }
+      const orderNumber = generateOrderNumber();
+      const created = await createOrderApi({
+        order_number: orderNumber,
+        customer_name: customerName.trim(),
+        customer_phone: customerPhone.trim(),
+        shipping_city: shippingCity,
+        shipping_address: shippingAddress.trim(),
+        order_source: orderSource,
+        subtotal,
+        shipping_fee: shippingFee,
+        discount_amount: 0,
+        gift_wrap_fee: 0,
+        total_amount: total,
+        status: 'Confirmed',
+        payment_method: paymentMethod,
+        payment_status: paymentMethod === 'COD' ? 'pending' : 'verified',
+        items: orderItems.map((it) => {
+          const prod = products.find((p) => p.id === it.productId);
+          const price = prod?.sale_price || prod?.regular_price || 0;
+          return {
+            product_id: prod?.id,
+            product_title: prod?.title || 'Personalized Gift',
+            sku: prod?.sku,
+            unit_price: price,
+            unit_cost: prod?.base_cost_price || Math.round(price * 0.4),
+            quantity: it.quantity,
+            line_total: price * it.quantity,
+            customization_data: it.customText ? { name_text: it.customText } : undefined,
+          };
+        }),
+      });
 
-    toast.success(`Manual Order #${orderNumber} created!`);
-    router.push('/admin/orders');
+      toast.success(`Manual Order #${created.order_number || orderNumber} saved to database!`);
+      router.push('/admin/orders');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to save manual order.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -124,7 +135,7 @@ export default function NewManualOrderPage() {
           </div>
         </div>
 
-        <Button type="submit" variant="gold" size="md" className="font-bold uppercase tracking-wider text-xs">
+        <Button type="submit" variant="gold" size="md" isLoading={isSaving} className="font-bold uppercase tracking-wider text-xs">
           Save &amp; Book Order
         </Button>
       </div>
@@ -236,7 +247,7 @@ export default function NewManualOrderPage() {
                       prev.map((it, i) => (i === idx ? { ...it, productId: val } : it))
                     );
                   }}
-                  options={INITIAL_PRODUCTS.map((p) => ({
+                  options={products.map((p) => ({
                     value: p.id,
                     label: `${p.title} (${formatPKR(p.sale_price || p.regular_price)})`,
                   }))}

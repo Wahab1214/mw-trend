@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { INITIAL_ORDERS } from '@/lib/mock-data';
+import { fetchOrdersApi } from '@/lib/catalog-client';
 import { Order, OrderStatus } from '@/types';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -25,23 +25,20 @@ import {
 
 export default function AdminOrdersPage() {
   const toast = useToast();
-  const [orders, setOrders] = React.useState<Order[]>(INITIAL_ORDERS);
+  const [orders, setOrders] = React.useState<Order[]>([]);
   const [search, setSearch] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState<string>('');
   const [paymentFilter, setPaymentFilter] = React.useState<string>('');
 
-  // Load real customer orders from storage
+  // Load real customer orders from server
   React.useEffect(() => {
-    try {
-      const stored = localStorage.getItem('mw_trends_customer_orders');
-      if (stored) {
-        setOrders(JSON.parse(stored));
-      } else {
+    fetchOrdersApi()
+      .then((list) => {
+        if (Array.isArray(list)) setOrders(list);
+      })
+      .catch(() => {
         setOrders([]);
-      }
-    } catch {
-      setOrders([]);
-    }
+      });
   }, []);
 
   const filteredOrders = orders.filter((o) => {

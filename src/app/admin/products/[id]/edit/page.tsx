@@ -9,8 +9,15 @@ import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/components/ui/toast';
-import { INITIAL_CATEGORIES, INITIAL_PRODUCTS } from '@/lib/mock-data';
-import { Product, PaymentMethod, MockupType, ProductImage } from '@/types';
+import { INITIAL_CATEGORIES } from '@/lib/mock-data';
+import {
+  fetchCatalogData,
+  fetchProductByIdOrSlug,
+  createCategoryApi,
+  updateProductApi,
+} from '@/lib/catalog-client';
+import { useCatalog } from '@/lib/store/catalog-context';
+import { Product, Category, PaymentMethod, MockupType, ProductImage } from '@/types';
 import { recordAuditLog } from '@/lib/audit';
 import { slugify } from '@/lib/utils';
 import { ProductImageUploader } from '@/components/admin/product-image-uploader';
@@ -20,15 +27,17 @@ export default function EditProductPage() {
   const router = useRouter();
   const params = useParams();
   const toast = useToast();
+  const { refreshCatalog } = useCatalog();
   const productId = params?.id as string;
 
   const [product, setProduct] = React.useState<Product | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [isSaving, setIsSaving] = React.useState(false);
 
   const [title, setTitle] = React.useState('');
   const [slug, setSlug] = React.useState('');
   const [sku, setSku] = React.useState('');
-  const [categoriesList, setCategoriesList] = React.useState(INITIAL_CATEGORIES);
+  const [categoriesList, setCategoriesList] = React.useState<Category[]>(INITIAL_CATEGORIES);
   const [category, setCategory] = React.useState('');
   const [showNewCategoryInput, setShowNewCategoryInput] = React.useState(false);
   const [customCategoryName, setCustomCategoryName] = React.useState('');
@@ -39,80 +48,73 @@ export default function EditProductPage() {
   const [salePrice, setSalePrice] = React.useState<number>(0);
   const [stock, setStock] = React.useState<number>(0);
   const [hasCustomization, setHasCustomization] = React.useState(false);
-  const [mockupType, setMockupType] = React.useState<MockupType>('mug');
+  const [mockupType, setMockupType] = React.useState<MockupType>('none');
   const [allowedMethods, setAllowedMethods] = React.useState<PaymentMethod[]>(['COD', 'JazzCash', 'Easypaisa', 'BankTransfer']);
   const [focusKeyword, setFocusKeyword] = React.useState('');
   const [seoTitle, setSeoTitle] = React.useState('');
   const [seoDescription, setSeoDescription] = React.useState('');
 
   React.useEffect(() => {
-    try {
-      const storedCategories = localStorage.getItem('mw_trends_categories');
-      if (storedCategories) {
-        setCategoriesList(JSON.parse(storedCategories));
-      }
-
-      let match: Product | undefined;
-      const stored = localStorage.getItem('mw_trends_products');
-      if (stored) {
-        const list: Product[] = JSON.parse(stored);
-        match = list.find((p) => p.id === productId || p.slug === productId);
-      }
-      if (!match) {
-        match = INITIAL_PRODUCTS.find((p) => p.id === productId || p.slug === productId);
-      }
-
-      if (match) {
-        setProduct(match);
-        setTitle(match.title);
-        setSlug(match.slug);
-        setSku(match.sku || '');
-        setCategory(match.category_id || INITIAL_CATEGORIES[0]?.id || '');
-        setDescription(match.description);
-        setImages(match.images || []);
-        setBaseCostPrice(match.base_cost_price);
-        setRegularPrice(match.regular_price);
-        setSalePrice(match.sale_price || 0);
-        setStock(match.stock_quantity);
-        setHasCustomization(match.has_customization);
-        setMockupType(match.mockup_type || 'mug');
-        setAllowedMethods(match.allowed_payment_methods || ['COD', 'JazzCash', 'Easypaisa', 'BankTransfer']);
-        setFocusKeyword(match.focus_keyword || '');
-        setSeoTitle(match.seo_title || '');
-        setSeoDescription(match.seo_description || '');
-      }
-    } catch {
-      // ignore
-    } finally {
-      setIsLoading(false);
-    }
+    let active = true;
+    setIsLoading(true);
+    Promise.all([fetchCatalogData(true), fetchProductByIdOrSlug(productId)])
+      .then(([catalog, match]) => {
+        if (!active) return;
+        if (catalog.categories?.length) {
+          setCategoriesList(catalog.categories);
+        }
+        const resolved =
+          match || catalog.products.find((p) => p.id === productId || p.slug === productId) || null;
+        if (resolved) {
+          setProduct(resolved);
+          setTitle(resolved.title);
+          setSlug(resolved.slug);
+          setSku(resolved.sku || '');
+          setCategory(resolved.category_id || catalog.categories?.[0]?.id || '');
+          setDescription(resolved.description || '');
+          setImages(resolved.images || []);
+          setBaseCostPrice(resolved.base_cost_price || 0);
+          setRegularPrice(resolved.regular_price || 0);
+          setSalePrice(resolved.sale_price || 0);
+          setStock(resolved.stock_quantity ?? 20);
+          setHasCustomization(Boolean(resolved.has_customization));
+          setMockupType(resolved.mockup_type || 'none');
+          setAllowedMethods(
+            resolved.allowed_payment_methods?.length
+              ? resolved.allowed_payment_methods
+              : ['COD', 'JazzCash', 'Easypaisa', 'BankTransfer']
+          );
+          setFocusKeyword(resolved.focus_keyword || '');
+          setSeoTitle(resolved.seo_title || '');
+          setSeoDescription(resolved.seo_description || '');
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, [productId]);
 
-  const handleCreateCategory = () => {
+  const handleCreateCategory = async () => {
     if (!customCategoryName.trim()) return;
     const cleanName = customCategoryName.trim();
-    const newCat = {
-      id: `cat_${Date.now()}`,
-      name: cleanName,
-      slug: slugify(cleanName),
-      description: `Custom personalized items under ${cleanName}`,
-      image_url: '',
-      sort_order: categoriesList.length + 1,
-      is_active: true,
-      is_featured: false,
-      product_count: 0,
-    };
-    const updated = [...categoriesList, newCat];
-    setCategoriesList(updated);
-    setCategory(newCat.id);
     try {
-      localStorage.setItem('mw_trends_categories', JSON.stringify(updated));
-    } catch {
-      // ignore
+      const created = await createCategoryApi({
+        name: cleanName,
+        description: `Personalized items under ${cleanName}`,
+      });
+      setCategoriesList((prev) => [...prev, created]);
+      setCategory(created.id);
+      await refreshCatalog();
+      setCustomCategoryName('');
+      setShowNewCategoryInput(false);
+      toast.success(`Category "${created.name}" created and synced!`);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to create category.');
     }
-    setCustomCategoryName('');
-    setShowNewCategoryInput(false);
-    toast.success(`Category "${newCat.name}" added and selected!`);
   };
 
   const togglePaymentMethod = (method: PaymentMethod) => {
@@ -121,54 +123,39 @@ export default function EditProductPage() {
     );
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!product) return;
 
+    setIsSaving(true);
     try {
-      const stored = localStorage.getItem('mw_trends_products');
-      let list: Product[] = stored ? JSON.parse(stored) : [];
-
-      // Ensure all initial products are present in the list
-      for (const initP of INITIAL_PRODUCTS) {
-        if (!list.some((p) => p.id === initP.id)) {
-          list.push(initP);
-        }
-      }
-
-      const selectedCatObj = categoriesList.find((c) => c.id === category);
-      const updatedList = list.map((p) => {
-        if (p.id === productId || p.slug === productId) {
-          return {
-            ...p,
-            title,
-            slug,
-            sku,
-            category_id: category,
-            category_name: selectedCatObj ? selectedCatObj.name : p.category_name,
-            description,
-            images: images.length > 0 ? images : p.images,
-            base_cost_price: baseCostPrice,
-            regular_price: regularPrice,
-            sale_price: salePrice || undefined,
-            stock_quantity: stock,
-            has_customization: hasCustomization,
-            mockup_type: mockupType,
-            allowed_payment_methods: allowedMethods,
-            focus_keyword: focusKeyword,
-            seo_title: seoTitle,
-            seo_description: seoDescription,
-          };
-        }
-        return p;
+      await updateProductApi(product.id, {
+        title: title.trim(),
+        slug: slug.trim() || slugify(title),
+        sku: sku.trim() || undefined,
+        category_id: category || undefined,
+        description,
+        images,
+        base_cost_price: Number(baseCostPrice) || 0,
+        regular_price: Number(regularPrice) || 0,
+        sale_price: salePrice > 0 ? Number(salePrice) : (null as any),
+        stock_quantity: Number(stock) || 0,
+        has_customization: hasCustomization,
+        mockup_type: mockupType,
+        allowed_payment_methods: allowedMethods,
+        focus_keyword: focusKeyword,
+        seo_title: seoTitle,
+        seo_description: seoDescription,
       });
 
-      localStorage.setItem('mw_trends_products', JSON.stringify(updatedList));
+      await refreshCatalog();
       recordAuditLog('PRODUCT_UPDATED', title, `Updated product SKU: ${sku || productId}`);
-      toast.success(`Product "${title}" updated successfully!`, 'Catalog Saved');
+      toast.success(`Product "${title}" saved to cloud database!`, 'Catalog Synced');
       router.push('/admin/products');
-    } catch {
-      toast.error('Failed to save product updates.');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to save product updates to database.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -212,7 +199,7 @@ export default function EditProductPage() {
           </div>
         </div>
 
-        <Button type="submit" variant="gold" size="md" className="font-bold uppercase tracking-wider text-xs">
+        <Button type="submit" variant="gold" size="md" isLoading={isSaving} className="font-bold uppercase tracking-wider text-xs">
           Save Changes
         </Button>
       </div>

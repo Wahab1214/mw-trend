@@ -4,7 +4,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useParams } from 'next/navigation';
-import { INITIAL_ORDERS } from '@/lib/mock-data';
+import { fetchOrderByIdApi, updateOrderApi } from '@/lib/catalog-client';
 import { Order, OrderStatus } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
@@ -36,32 +36,49 @@ export default function OrderDetailPage() {
   const orderId = params?.id as string;
   const toast = useToast();
 
-  const [order, setOrder] = React.useState<Order | null>(() => {
-    // Check localStorage
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem('mw_trends_customer_orders');
-        if (stored) {
-          const list = JSON.parse(stored);
-          const found = list.find((o: any) => o.id === orderId || o.order_number === orderId);
-          if (found) return found;
-        }
-      } catch {
-        // ignore
-      }
-    }
-    return INITIAL_ORDERS.find((o) => o.id === orderId || o.order_number === orderId) || null;
-  });
-
-  const [currentStatus, setCurrentStatus] = React.useState<OrderStatus>(order?.status || 'New');
-  const [courierName, setCourierName] = React.useState(order?.courier_name || COURIER_PARTNERS[0].name);
-  const [trackingNumber, setTrackingNumber] = React.useState(order?.tracking_number || '');
-  const [courierCost, setCourierCost] = React.useState<number>(order?.courier_cost || 180);
-  const [adPackingCost, setAdPackingCost] = React.useState<number>(order?.packaging_ad_expense || 100);
+  const [order, setOrder] = React.useState<Order | null>(null);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [currentStatus, setCurrentStatus] = React.useState<OrderStatus>('New');
+  const [courierName, setCourierName] = React.useState(COURIER_PARTNERS[0].name);
+  const [trackingNumber, setTrackingNumber] = React.useState('');
+  const [courierCost, setCourierCost] = React.useState<number>(180);
+  const [adPackingCost, setAdPackingCost] = React.useState<number>(100);
   const [isProofModalOpen, setIsProofModalOpen] = React.useState(false);
-  const [paymentVerified, setPaymentVerified] = React.useState(
-    order?.payment_status === 'verified' || order?.payment_status === 'paid'
-  );
+  const [paymentVerified, setPaymentVerified] = React.useState(false);
+
+  React.useEffect(() => {
+    let active = true;
+    setIsLoading(true);
+    fetchOrderByIdApi(orderId)
+      .then((found) => {
+        if (!active) return;
+        setOrder(found);
+        if (found) {
+          setCurrentStatus(found.status || 'New');
+          setCourierName(found.courier_name || COURIER_PARTNERS[0].name);
+          setTrackingNumber(found.tracking_number || '');
+          setCourierCost(found.courier_cost || 180);
+          setAdPackingCost(found.packaging_ad_expense || 100);
+          setPaymentVerified(found.payment_status === 'verified' || found.payment_status === 'paid');
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [orderId]);
+
+  if (isLoading) {
+    return (
+      <div className="max-w-md mx-auto py-24 text-center space-y-3 select-none">
+        <div className="w-10 h-10 border-2 border-gold border-t-transparent rounded-full animate-spin mx-auto" />
+        <p className="text-xs text-text-muted">Loading order details from database...</p>
+      </div>
+    );
+  }
 
   if (!order) {
     return (
@@ -94,66 +111,94 @@ export default function OrderDetailPage() {
     adPackingCost
   );
 
-  const handleStatusChange = (newStatus: OrderStatus) => {
+  const handleStatusChange = async (newStatus: OrderStatus) => {
+    if (!order) return;
     setCurrentStatus(newStatus);
     setOrder((prev) => (prev ? { ...prev, status: newStatus } : null));
-    if (order) {
+    try {
+      await updateOrderApi(order.id, { status: newStatus });
       recordAuditLog('ORDER_STATUS_UPDATE', order.order_number, `Status updated to "${newStatus}"`);
+      toast.success(`Order status changed to "${newStatus}" and synced across devices.`);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update status in database.');
     }
-    toast.success(`Order status changed to "${newStatus}" and audit log recorded.`);
   };
 
-  const handleSaveDispatch = () => {
+  const handleSaveDispatch = async () => {
+    if (!order) return;
     const selectedPartner = COURIER_PARTNERS.find((c) => c.name === courierName);
     const trackingUrl = selectedPartner ? `${selectedPartner.trackingUrl}${trackingNumber}` : '';
 
-    setOrder((prev) =>
-      prev
-        ? {
-            ...prev,
-            courier_name: courierName,
-            tracking_number: trackingNumber,
-            tracking_url: trackingUrl,
-            status: 'Shipped',
-          }
-        : null
-    );
-    setCurrentStatus('Shipped');
-    toast.success(`Order dispatched via ${courierName}! Tracking number: ${trackingNumber}`);
+    try {
+      await updateOrderApi(order.id, {
+        courier_name: courierName,
+        tracking_number: trackingNumber,
+        tracking_url: trackingUrl,
+        status: 'Shipped',
+        dispatched_at: new Date().toISOString(),
+      });
+      setOrder((prev) =>
+        prev
+          ? {
+              ...prev,
+              courier_name: courierName,
+              tracking_number: trackingNumber,
+              tracking_url: trackingUrl,
+              status: 'Shipped',
+            }
+          : null
+      );
+      setCurrentStatus('Shipped');
+      toast.success(`Order dispatched via ${courierName}! Tracking number: ${trackingNumber}`);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to save dispatch details.');
+    }
   };
 
-  const handleApprovePayment = () => {
-    setPaymentVerified(true);
-    setOrder((prev) =>
-      prev
-        ? {
-            ...prev,
-            payment_status: 'verified',
-            payment_proof: prev.payment_proof
-              ? { ...prev.payment_proof, status: 'approved' }
-              : undefined,
-          }
-        : null
-    );
-    setIsProofModalOpen(false);
-    toast.success('Payment proof verified and approved!');
+  const handleApprovePayment = async () => {
+    if (!order) return;
+    try {
+      await updateOrderApi(order.id, { payment_status: 'verified' });
+      setPaymentVerified(true);
+      setOrder((prev) =>
+        prev
+          ? {
+              ...prev,
+              payment_status: 'verified',
+              payment_proof: prev.payment_proof
+                ? { ...prev.payment_proof, status: 'approved' }
+                : undefined,
+            }
+          : null
+      );
+      setIsProofModalOpen(false);
+      toast.success('Payment proof verified and approved!');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to approve payment.');
+    }
   };
 
-  const handleRejectPayment = () => {
-    setPaymentVerified(false);
-    setOrder((prev) =>
-      prev
-        ? {
-            ...prev,
-            payment_status: 'failed',
-            payment_proof: prev.payment_proof
-              ? { ...prev.payment_proof, status: 'rejected' }
-              : undefined,
-          }
-        : null
-    );
-    setIsProofModalOpen(false);
-    toast.error('Payment proof rejected. Notification sent to customer.');
+  const handleRejectPayment = async () => {
+    if (!order) return;
+    try {
+      await updateOrderApi(order.id, { payment_status: 'failed' });
+      setPaymentVerified(false);
+      setOrder((prev) =>
+        prev
+          ? {
+              ...prev,
+              payment_status: 'failed',
+              payment_proof: prev.payment_proof
+                ? { ...prev.payment_proof, status: 'rejected' }
+                : undefined,
+            }
+          : null
+      );
+      setIsProofModalOpen(false);
+      toast.error('Payment proof rejected.');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update payment status.');
+    }
   };
 
   const handlePrint = () => {

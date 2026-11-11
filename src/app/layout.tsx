@@ -5,6 +5,7 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { ToastProvider } from '@/components/ui/toast';
 import { CartProvider } from '@/lib/store/cart-context';
 import { WishlistProvider } from '@/lib/store/wishlist-context';
+import { CatalogProvider } from '@/lib/store/catalog-context';
 import { AnnouncementBar } from '@/components/layout/announcement-bar';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
@@ -31,14 +32,14 @@ export const metadata: Metadata = {
     template: '%s | MW Trends',
   },
   description:
-    "Pakistan's premier print-on-demand studio. Order custom monogram mugs, laser-engraved pens, heavyweight streetwear tees, custom caps, and romantic gold-foil cards with nationwide COD.",
+    'Order personalized Love Identity Cards, photo frames, customized Nikkah booklets, engraved pens, photo mugs, leather wallets & locket gifts across Pakistan.',
   keywords: [
     'custom gifts pakistan',
-    'print on demand pakistan',
-    'personalized mugs lahore',
-    'laser engraved pens karachi',
-    'custom oversized t shirts',
-    'anniversary cards pakistan',
+    'personalized love identity card',
+    'spotify photo frame pakistan',
+    'custom nikkah booklet',
+    'laser engraved pens pakistan',
+    'custom ceramic mugs pakistan',
     'cash on delivery gifts pakistan',
   ],
   authors: [{ name: 'MW Trends Studio' }],
@@ -53,22 +54,22 @@ export const metadata: Metadata = {
     locale: 'en_PK',
     url: 'https://mwtrends.pk',
     siteName: 'MW Trends',
-    title: 'MW Trends | Premium Personalized Gifts & Print on Demand Pakistan',
+    title: 'MW Trends | Personalized Gifts, Custom Cards, Frames & Engraved Keepsakes',
     description:
-      'Order custom monogram mugs, engraved pens, streetwear tees, and keepsake cards with live 3D preview and cash on delivery across Pakistan.',
+      'Shop personalized cards, photo frames, Nikkah booklets, engraved pens, mugs, and gift sets with Cash on Delivery across Pakistan.',
     images: [
       {
         url: '/brand/logo.svg',
         width: 1200,
         height: 630,
-        alt: 'MW Trends Luxury Studio',
+        alt: 'MW Trends Studio',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'MW Trends | Premium Personalized Gifts in Pakistan',
-    description: 'Custom mugs, pens, shirts, hoodies, caps, and cards with nationwide delivery.',
+    title: 'MW Trends | Personalized Gifts in Pakistan',
+    description: 'Custom cards, photo frames, engraved pens, mugs, and keepsake gifts across Pakistan.',
     images: ['/brand/logo.svg'],
   },
 };
@@ -91,17 +92,19 @@ export default function RootLayout({
           disableTransitionOnChange={false}
         >
           <ToastProvider>
-            <CartProvider>
-              <WishlistProvider>
-                <AnnouncementBar />
-                <Header />
-                <main className="flex-1">{children}</main>
-                <Footer />
-                <CartDrawer />
-                <MobileBottomNav />
-                <WhatsAppFloating />
-              </WishlistProvider>
-            </CartProvider>
+            <CatalogProvider>
+              <CartProvider>
+                <WishlistProvider>
+                  <AnnouncementBar />
+                  <Header />
+                  <main className="flex-1">{children}</main>
+                  <Footer />
+                  <CartDrawer />
+                  <MobileBottomNav />
+                  <WhatsAppFloating />
+                </WishlistProvider>
+              </CartProvider>
+            </CatalogProvider>
           </ToastProvider>
         </ThemeProvider>
       </body>

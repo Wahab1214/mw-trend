@@ -7,34 +7,45 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
+import { useCatalog } from '@/lib/store/catalog-context';
 import { Mail, Phone, MapPin, Send, MessageCircle } from 'lucide-react';
 
 export default function ContactPage() {
   const toast = useToast();
+  const { settings } = useCatalog();
   const [name, setName] = React.useState('');
   const [email, setEmail] = React.useState('');
   const [phone, setPhone] = React.useState('');
   const [subject, setSubject] = React.useState('');
   const [message, setMessage] = React.useState('');
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+  const waClean = (settings.whatsapp_number || '+92 337 0566870').replace(/[^0-9]/g, '');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !email.trim() || !message.trim()) {
-      toast.error('Please fill in required fields.');
+    if (!name.trim() || !message.trim()) {
+      toast.error('Please enter your name and message.');
       return;
     }
 
-    setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setName('');
-      setEmail('');
-      setPhone('');
-      setSubject('');
-      setMessage('');
-      toast.success('Your message has been sent to our Lahore studio! We will reply within 24 hours.', 'Message Sent');
-    }, 800);
+    const formatted = [
+      `Assalam-o-Alaikum ${settings.store_name || 'MW Trends'}!`,
+      `Name: ${name.trim()}`,
+      phone.trim() ? `Phone: ${phone.trim()}` : '',
+      email.trim() ? `Email: ${email.trim()}` : '',
+      subject.trim() ? `Subject: ${subject.trim()}` : '',
+      `Message: ${message.trim()}`,
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    window.open(`https://wa.me/${waClean}?text=${encodeURIComponent(formatted)}`, '_blank', 'noopener,noreferrer');
+    setName('');
+    setEmail('');
+    setPhone('');
+    setSubject('');
+    setMessage('');
+    toast.success('Opening WhatsApp to deliver your inquiry directly to our team.', 'Inquiry Ready');
   };
 
   return (
@@ -62,16 +73,16 @@ export default function ContactPage() {
               <div className="flex items-start gap-3">
                 <MapPin className="w-4 h-4 text-gold shrink-0 mt-0.5" />
                 <div>
-                  <strong className="text-text-primary block font-semibold">Lahore Creative Studio</strong>
-                  <span>Gulberg III, Main Boulevard, Lahore, Pakistan</span>
+                  <strong className="text-text-primary block font-semibold">{settings.store_name || 'MW Trends'}</strong>
+                  <span>Nationwide Custom Gifts &amp; Printing Across Pakistan</span>
                 </div>
               </div>
 
               <div className="flex items-center gap-3">
                 <Phone className="w-4 h-4 text-gold shrink-0" />
                 <div>
-                  <strong className="text-text-primary block font-semibold">Customer Helpline</strong>
-                  <span>Direct Studio Desk (10 AM - 10 PM PKT)</span>
+                  <strong className="text-text-primary block font-semibold">WhatsApp Order Desk</strong>
+                  <span>{settings.whatsapp_number || '+92 337 0566870'}</span>
                 </div>
               </div>
 
@@ -79,19 +90,26 @@ export default function ContactPage() {
                 <Mail className="w-4 h-4 text-gold shrink-0" />
                 <div>
                   <strong className="text-text-primary block font-semibold">Official Email</strong>
-                  <span>wmofficial11@gmail.com</span>
+                  <span>{settings.contact_email || 'wmofficial11@gmail.com'}</span>
                 </div>
               </div>
             </div>
 
-            <div className="pt-2">
-              <Link
-                href="/shop"
+            <div className="pt-2 space-y-2">
+              <a
+                href={`https://wa.me/${waClean}?text=${encodeURIComponent(`Assalam-o-Alaikum ${settings.store_name || 'MW Trends'}, I have an inquiry.`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="block w-full"
               >
                 <Button variant="gold" size="md" className="w-full gap-2 text-xs font-bold">
                   <MessageCircle className="w-4 h-4" />
-                  <span>Explore Personalized Catalog</span>
+                  <span>Chat on WhatsApp</span>
+                </Button>
+              </a>
+              <Link href="/shop" className="block w-full">
+                <Button variant="outline" size="md" className="w-full text-xs font-semibold">
+                  <span>Browse Catalog</span>
                 </Button>
               </Link>
             </div>
@@ -117,9 +135,8 @@ export default function ContactPage() {
                 <Input
                   type="email"
                   label="Email Address"
-                  placeholder="ayesha@gmail.com"
+                  placeholder="you@example.com"
                   value={email}
-                  required
                   onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
@@ -127,13 +144,13 @@ export default function ContactPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input
                   label="Phone (WhatsApp)"
-                  placeholder="03001234567"
+                  placeholder="03XX-XXXXXXX"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                 />
                 <Input
                   label="Subject"
-                  placeholder="e.g. Bulk Corporate Customization"
+                  placeholder="e.g. Bulk Custom Order"
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
                 />
@@ -141,7 +158,7 @@ export default function ContactPage() {
 
               <Textarea
                 label="Message / Inquiry"
-                placeholder="Describe your design questions or bulk order requirements..."
+                placeholder="Describe your customization request or bulk order requirements..."
                 value={message}
                 required
                 charLimit={500}
@@ -152,11 +169,10 @@ export default function ContactPage() {
                 type="submit"
                 variant="gold"
                 size="md"
-                isLoading={isSubmitting}
                 className="gap-2 font-bold uppercase tracking-wider text-xs"
               >
                 <Send className="w-4 h-4" />
-                <span>Submit Inquiry</span>
+                <span>Send via WhatsApp</span>
               </Button>
             </form>
           </div>

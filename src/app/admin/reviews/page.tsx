@@ -7,50 +7,73 @@ import { Badge } from '@/components/ui/badge';
 import { Rating } from '@/components/ui/rating';
 import { useToast } from '@/components/ui/toast';
 import { INITIAL_REVIEWS } from '@/lib/mock-data';
+import { useCatalog } from '@/lib/store/catalog-context';
 import { Review } from '@/types';
 import { formatDate } from '@/lib/utils';
 import { Check, X, Star, Trash2 } from 'lucide-react';
 
 export default function AdminReviewsPage() {
   const toast = useToast();
+  const { refreshCatalog } = useCatalog();
   const [reviews, setReviews] = React.useState<Review[]>(INITIAL_REVIEWS);
 
   React.useEffect(() => {
-    try {
-      const stored = localStorage.getItem('mw_trends_reviews');
-      if (stored) {
-        setReviews(JSON.parse(stored));
-      }
-    } catch {
-      // ignore
-    }
+    fetch('/api/marketing', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data.reviews)) setReviews(data.reviews);
+      })
+      .catch(() => {});
   }, []);
 
-  const saveReviews = (updated: Review[]) => {
-    setReviews(updated);
+  const toggleApproval = async (id: string) => {
+    const rev = reviews.find((r) => r.id === id);
+    if (!rev) return;
     try {
-      localStorage.setItem('mw_trends_reviews', JSON.stringify(updated));
-    } catch {
-      // ignore
+      const res = await fetch('/api/marketing', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entity: 'review', id, is_approved: !rev.is_approved }),
+      });
+      if (!res.ok) throw new Error('Update failed');
+      setReviews((prev) => prev.map((r) => (r.id === id ? { ...r, is_approved: !r.is_approved } : r)));
+      await refreshCatalog();
+      toast.success('Review approval status synced!');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update review.');
     }
   };
 
-  const toggleApproval = (id: string) => {
-    const updated = reviews.map((r) => (r.id === id ? { ...r, is_approved: !r.is_approved } : r));
-    saveReviews(updated);
-    toast.success('Review approval status toggled.');
+  const toggleFeatured = async (id: string) => {
+    const rev = reviews.find((r) => r.id === id);
+    if (!rev) return;
+    try {
+      const res = await fetch('/api/marketing', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entity: 'review', id, is_featured: !rev.is_featured }),
+      });
+      if (!res.ok) throw new Error('Update failed');
+      setReviews((prev) => prev.map((r) => (r.id === id ? { ...r, is_featured: !r.is_featured } : r)));
+      await refreshCatalog();
+      toast.success('Featured review updated.');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update review.');
+    }
   };
 
-  const toggleFeatured = (id: string) => {
-    const updated = reviews.map((r) => (r.id === id ? { ...r, is_featured: !r.is_featured } : r));
-    saveReviews(updated);
-    toast.success('Homepage featured review updated.');
-  };
-
-  const handleDelete = (id: string) => {
-    const updated = reviews.filter((r) => r.id !== id);
-    saveReviews(updated);
-    toast.info('Review deleted.');
+  const handleDelete = async (id: string) => {
+    try {
+      const res = await fetch(`/api/marketing?entity=review&id=${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('Delete failed');
+      setReviews((prev) => prev.filter((r) => r.id !== id));
+      await refreshCatalog();
+      toast.info('Review deleted.');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to delete review.');
+    }
   };
 
   return (

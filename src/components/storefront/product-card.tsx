@@ -9,7 +9,7 @@ import { Rating } from '@/components/ui/rating';
 import { Badge } from '@/components/ui/badge';
 import { useWishlist } from '@/lib/store/wishlist-context';
 import { useCart } from '@/lib/store/cart-context';
-import { Heart, ShoppingBag, Sparkles, Check } from 'lucide-react';
+import { Heart, ShoppingBag, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface ProductCardProps {
@@ -24,8 +24,7 @@ export function ProductCard({ product, className, priority = false }: ProductCar
   const isWishlisted = isInWishlist(product.id);
   const [isAdded, setIsAdded] = React.useState(false);
 
-  const primaryImage = product.images.find((img) => img.is_primary) || product.images[0];
-  const secondaryImage = product.images[1] || primaryImage;
+  const primaryImage = product.images?.find((img) => img.is_primary) || product.images?.[0];
 
   const handleQuickAdd = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -40,9 +39,6 @@ export function ProductCard({ product, className, priority = false }: ProductCar
       quantity: 1,
       allowed_payment_methods: product.allowed_payment_methods,
       mockup_type: product.mockup_type,
-      customization_data: product.has_customization
-        ? { name_text: 'MW CUSTOM' }
-        : undefined,
     });
 
     setIsAdded(true);
@@ -59,7 +55,7 @@ export function ProductCard({ product, className, priority = false }: ProductCar
       {/* Product Image Frame */}
       <div className="relative w-full aspect-square bg-[#0D0D0D] overflow-hidden">
         <Link href={`/product/${product.slug}`} className="block w-full h-full">
-          {primaryImage && (
+          {primaryImage?.image_url ? (
             <Image
               src={primaryImage.image_url}
               alt={primaryImage.alt_text || product.title}
@@ -69,27 +65,32 @@ export function ProductCard({ product, className, priority = false }: ProductCar
               priority={priority}
               className="object-cover transition-transform duration-500 group-hover:scale-105"
             />
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#141414] via-[#1B1811] to-[#0D0D0D] p-6 text-center gap-2.5">
+              <div className="w-12 h-12 rounded-xl bg-black/70 border border-gold/30 flex items-center justify-center p-2">
+                <Image
+                  src="/brand/monogram.svg"
+                  alt="MW Trends"
+                  width={32}
+                  height={32}
+                  className="object-contain opacity-85"
+                />
+              </div>
+              <span className="text-[10px] uppercase tracking-widest text-text-muted font-medium">
+                Studio Photo Pending
+              </span>
+            </div>
           )}
         </Link>
 
-        {/* Badges Overlay */}
-        <div className="absolute top-2.5 left-2.5 flex flex-col gap-1 z-10">
-          {product.is_trending && (
-            <Badge variant="gold" size="sm">
-              Trending
-            </Badge>
-          )}
-          {product.is_new && !product.is_trending && (
+        {/* Out of stock badge only when relevant */}
+        {product.track_stock && product.stock_quantity <= 0 && (
+          <div className="absolute top-2.5 left-2.5 z-10">
             <Badge variant="default" size="sm">
-              New Drop
+              Out of Stock
             </Badge>
-          )}
-          {product.stock_quantity <= 5 && product.stock_quantity > 0 && (
-            <Badge variant="warning" size="sm">
-              Only {product.stock_quantity} left
-            </Badge>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Wishlist Button */}
         <button
@@ -111,26 +112,24 @@ export function ProductCard({ product, className, priority = false }: ProductCar
         </button>
 
         {/* Quick Add To Bag overlay */}
-        <div className="absolute inset-x-2 bottom-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+        <div className="hidden sm:block absolute inset-x-2 bottom-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
           <button
             type="button"
             onClick={handleQuickAdd}
             className={cn(
               'w-full py-2 px-3 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-lg transition-all',
-              isAdded
-                ? 'bg-status-success text-white'
-                : 'bg-gold hover:bg-gold-light text-black'
+              isAdded ? 'bg-status-success text-white' : 'bg-gold hover:bg-gold-light text-black'
             )}
           >
             {isAdded ? (
               <>
                 <Check className="w-3.5 h-3.5" />
-                <span>Added to Bag</span>
+                <span>Added</span>
               </>
             ) : (
               <>
                 <ShoppingBag className="w-3.5 h-3.5" />
-                <span>Quick Add</span>
+                <span>Add to Bag</span>
               </>
             )}
           </button>
@@ -138,10 +137,10 @@ export function ProductCard({ product, className, priority = false }: ProductCar
       </div>
 
       {/* Product Content Details */}
-      <div className="p-4 flex-1 flex flex-col justify-between space-y-2">
+      <div className="p-3.5 sm:p-4 flex-1 flex flex-col justify-between space-y-2">
         <div className="space-y-1">
           {product.category_name && (
-            <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider block">
+            <span className="text-[10px] sm:text-[11px] font-medium text-text-muted uppercase tracking-wider block truncate">
               {product.category_name}
             </span>
           )}
@@ -151,21 +150,17 @@ export function ProductCard({ product, className, priority = false }: ProductCar
           </h3>
         </div>
 
-        <div className="pt-1 flex items-center justify-between">
+        <div className="pt-1 flex items-center justify-between gap-2 flex-wrap">
           <Price
             price={product.regular_price}
             salePrice={product.sale_price}
             size="sm"
+            showBadge={false}
           />
-          <Rating value={product.rating_average} count={product.reviews_count} size="sm" />
+          {product.reviews_count > 0 && (
+            <Rating value={product.rating_average} count={product.reviews_count} size="sm" />
+          )}
         </div>
-
-        {product.has_customization && (
-          <div className="pt-1 flex items-center gap-1 text-[10px] text-gold font-medium">
-            <Sparkles className="w-3 h-3 text-gold" />
-            <span>Custom Name &amp; Live 3D Preview</span>
-          </div>
-        )}
       </div>
     </div>
   );

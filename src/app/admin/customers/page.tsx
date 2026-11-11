@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/toast';
+import { fetchOrdersApi } from '@/lib/catalog-client';
 import { formatPKR, formatDate } from '@/lib/utils';
 import { Search, UserX, UserCheck, MessageCircle, Users } from 'lucide-react';
 
@@ -27,10 +28,8 @@ export default function AdminCustomersPage() {
   const [customers, setCustomers] = React.useState<Customer[]>([]);
 
   React.useEffect(() => {
-    try {
-      const stored = localStorage.getItem('mw_trends_customer_orders');
-      if (stored) {
-        const orders = JSON.parse(stored);
+    fetchOrdersApi()
+      .then((orders) => {
         const customerMap: Record<string, Customer> = {};
         orders.forEach((o: any) => {
           const key = (o.customer_phone || o.customer_name || 'unknown').trim();
@@ -48,16 +47,14 @@ export default function AdminCustomersPage() {
             };
           }
           customerMap[key].ordersCount += 1;
-          customerMap[key].totalSpent += (o.total_amount || 0);
+          customerMap[key].totalSpent += Number(o.total_amount || 0);
           if (new Date(o.created_at) > new Date(customerMap[key].lastOrderDate)) {
             customerMap[key].lastOrderDate = o.created_at;
           }
         });
         setCustomers(Object.values(customerMap));
-      }
-    } catch {
-      // ignore
-    }
+      })
+      .catch(() => {});
   }, []);
 
   const filtered = customers.filter(

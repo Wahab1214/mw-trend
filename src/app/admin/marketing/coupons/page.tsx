@@ -16,28 +16,20 @@ import { Tag, Plus, Trash2, CheckCircle2 } from 'lucide-react';
 export default function AdminCouponsPage() {
   const toast = useToast();
   const [coupons, setCoupons] = React.useState<Coupon[]>([]);
+  const [isSaving, setIsSaving] = React.useState(false);
 
   React.useEffect(() => {
-    try {
-      const stored = localStorage.getItem('mw_trends_coupons');
-      if (stored) {
-        setCoupons(JSON.parse(stored));
-      } else {
+    fetch('/api/marketing', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data.coupons)) {
+          setCoupons(data.coupons);
+        }
+      })
+      .catch(() => {
         setCoupons([]);
-      }
-    } catch {
-      setCoupons([]);
-    }
+      });
   }, []);
-
-  const saveCoupons = (updated: Coupon[]) => {
-    setCoupons(updated);
-    try {
-      localStorage.setItem('mw_trends_coupons', JSON.stringify(updated));
-    } catch {
-      // ignore
-    }
-  };
 
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [newCode, setNewCode] = React.useState('');
@@ -45,32 +37,54 @@ export default function AdminCouponsPage() {
   const [newValue, setNewValue] = React.useState<number>(10);
   const [minOrder, setMinOrder] = React.useState<number>(1500);
 
-  const handleCreateCoupon = (e: React.FormEvent) => {
+  const handleCreateCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCode.trim()) return;
 
-    const coupon: Coupon = {
-      id: `cp_${Date.now()}`,
-      code: newCode.trim().toUpperCase(),
-      discount_type: newType,
-      discount_value: newValue,
-      min_order_value: minOrder,
-      per_user_limit: 1,
-      used_count: 0,
-      is_active: true,
-    };
+    setIsSaving(true);
+    try {
+      const res = await fetch('/api/marketing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          entity: 'coupon',
+          code: newCode.trim().toUpperCase(),
+          discount_type: newType,
+          discount_value: newType === 'free_shipping' ? 0 : Number(newValue) || 0,
+          min_order_value: Number(minOrder) || 0,
+          per_user_limit: 1,
+          is_active: true,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to create coupon.');
 
-    saveCoupons([coupon, ...coupons]);
-    recordAuditLog('COUPON_CREATED', coupon.code, `Created promotional coupon code: ${coupon.code}`);
-    setIsModalOpen(false);
-    setNewCode('');
-    toast.success(`Coupon code "${coupon.code}" created and active!`);
+      const coupon = data.coupon;
+      setCoupons((prev) => [coupon, ...prev]);
+      recordAuditLog('COUPON_CREATED', coupon.code, `Created promotional coupon code: ${coupon.code}`);
+      setIsModalOpen(false);
+      setNewCode('');
+      toast.success(`Coupon code "${coupon.code}" created & active across all devices!`);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to create coupon.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleDelete = (id: string, code: string) => {
-    saveCoupons(coupons.filter((c) => c.id !== id));
-    recordAuditLog('COUPON_DELETED', code, `Deleted coupon code: ${code}`);
-    toast.info(`Coupon "${code}" deleted.`);
+  const handleDelete = async (id: string, code: string) => {
+    if (!confirm(`Delete coupon "${code}"?`)) return;
+    try {
+      const res = await fetch(`/api/marketing?entity=coupon&id=${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('Delete failed');
+      setCoupons((prev) => prev.filter((c) => c.id !== id));
+      recordAuditLog('COUPON_DELETED', code, `Deleted coupon code: ${code}`);
+      toast.info(`Coupon "${code}" deleted.`);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to delete coupon.');
+    }
   };
 
   return (
@@ -207,7 +221,7 @@ export default function AdminCouponsPage() {
             <Button type="button" variant="outline" size="sm" onClick={() => setIsModalOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" variant="gold" size="sm">
+            <Button type="submit" variant="gold" size="sm" isLoading={isSaving}>
               Save Coupon
             </Button>
           </div>

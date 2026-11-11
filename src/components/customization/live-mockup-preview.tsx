@@ -96,7 +96,7 @@ export function LiveMockupPreview({
       {/* Live Preview Label Badge */}
       <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/75 border border-gold/40 text-[11px] font-semibold text-gold backdrop-blur-md">
         <Sparkles className="w-3 h-3 text-gold animate-spin" style={{ animationDuration: '4s' }} />
-        <span>Live 3D Custom Preview</span>
+        <span>Custom Text Preview</span>
       </div>
 
       {/* SVG Canvas Mockup Engine */}

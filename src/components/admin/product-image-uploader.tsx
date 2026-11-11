@@ -2,104 +2,65 @@
 
 import * as React from 'react';
 import { ProductImage } from '@/types';
-import { UploadCloud, Trash2, Star, Plus, Link as LinkIcon, Image as ImageIcon, Check } from 'lucide-react';
+import { UploadCloud, Star, Trash2, Plus, Link as LinkIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { uploadImageToCloud } from '@/lib/catalog-client';
 
-interface ProductImageUploaderProps {
+export interface ProductImageUploaderProps {
   images: ProductImage[];
   onChange: (images: ProductImage[]) => void;
   maxImages?: number;
 }
 
-// Client-side image compression using HTML5 Canvas (high quality, ultra lightweight)
-async function compressImageFile(file: File, maxWidth = 900, maxHeight = 900, quality = 0.75): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const img = document.createElement('img');
-      img.onload = () => {
-        let width = img.width;
-        let height = img.height;
-
-        if (width > height) {
-          if (width > maxWidth) {
-            height = Math.round((height * maxWidth) / width);
-            width = maxWidth;
-          }
-        } else {
-          if (height > maxHeight) {
-            width = Math.round((width * maxHeight) / height);
-            height = maxHeight;
-          }
-        }
-
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          resolve(event.target?.result as string);
-          return;
-        }
-
-        ctx.drawImage(img, 0, 0, width, height);
-        const dataUrl = canvas.toDataURL('image/jpeg', quality);
-        resolve(dataUrl);
-      };
-      img.onerror = () => reject(new Error('Image processing error'));
-      img.src = event.target?.result as string;
-    };
-    reader.onerror = () => reject(new Error('File reading error'));
-    reader.readAsDataURL(file);
-  });
-}
-
-export function ProductImageUploader({ images, onChange, maxImages = 6 }: ProductImageUploaderProps) {
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
-  const [isProcessing, setIsProcessing] = React.useState(false);
-  const [showUrlInput, setShowUrlInput] = React.useState(false);
-  const [manualUrl, setManualUrl] = React.useState('');
+export function ProductImageUploader({
+  images,
+  onChange,
+  maxImages = 6,
+}: ProductImageUploaderProps) {
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   const [isDragging, setIsDragging] = React.useState(false);
+  const [isProcessing, setIsProcessing] = React.useState(false);
+  const [uploadError, setUploadError] = React.useState<string | null>(null);
+  const [manualUrl, setManualUrl] = React.useState('');
+  const [showUrlInput, setShowUrlInput] = React.useState(false);
 
   const handleFiles = async (files: FileList | File[]) => {
-    const fileArray = Array.from(files).filter((f) => f.type.startsWith('image/'));
-    if (fileArray.length === 0) return;
-
-    const availableSlots = maxImages - images.length;
-    if (availableSlots <= 0) {
-      alert(`You can upload a maximum of ${maxImages} images per product.`);
+    const fileArray = Array.from(files);
+    if (images.length + fileArray.length > maxImages) {
+      setUploadError(`Aik product ke liye maximum ${maxImages} photos upload kar sakte hain.`);
       return;
     }
 
-    const filesToProcess = fileArray.slice(0, availableSlots);
+    setUploadError(null);
     setIsProcessing(true);
+    const newImages: ProductImage[] = [];
 
-    try {
-      const newImages: ProductImage[] = [];
-      for (let i = 0; i < filesToProcess.length; i++) {
-        const file = filesToProcess[i];
-        const compressedBase64 = await compressImageFile(file);
+    for (const file of fileArray) {
+      if (!file.type.startsWith('image/')) continue;
+      try {
+        const cloudUrl = await uploadImageToCloud(file, 'products');
         newImages.push({
-          id: `img_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 6)}`,
+          id: `img_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
           product_id: '',
-          image_url: compressedBase64,
+          image_url: cloudUrl,
           alt_text: file.name.replace(/\.[^/.]+$/, ''),
-          sort_order: images.length + i + 1,
-          is_primary: images.length === 0 && i === 0,
+          sort_order: images.length + newImages.length + 1,
+          is_primary: images.length === 0 && newImages.length === 0,
         });
-      }
-
-      onChange([...images, ...newImages]);
-    } catch {
-      alert('Failed to process image files.');
-    } finally {
-      setIsProcessing(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+      } catch (err: any) {
+        setUploadError(
+          err?.message ||
+            'Cloud image upload fail hogaya. Confirm karein ke Vercel par SUPABASE_SERVICE_ROLE_KEY set hai.'
+        );
       }
     }
+
+    if (newImages.length > 0) {
+      onChange([...images, ...newImages]);
+    }
+    setIsProcessing(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -128,7 +89,6 @@ export function ProductImageUploader({ images, onChange, maxImages = 6 }: Produc
 
   const handleDeleteImage = (id: string) => {
     const remaining = images.filter((img) => img.id !== id);
-    // If the primary image was deleted, make the first one primary
     if (remaining.length > 0 && !remaining.some((img) => img.is_primary)) {
       remaining[0].is_primary = true;
     }
@@ -140,7 +100,6 @@ export function ProductImageUploader({ images, onChange, maxImages = 6 }: Produc
       ...img,
       is_primary: img.id === id,
     }));
-    // Sort so primary is first
     const primary = updated.find((img) => img.is_primary);
     const others = updated.filter((img) => !img.is_primary);
     onChange(primary ? [primary, ...others] : updated);
@@ -151,7 +110,7 @@ export function ProductImageUploader({ images, onChange, maxImages = 6 }: Produc
     if (!manualUrl.trim()) return;
 
     if (images.length >= maxImages) {
-      alert(`Maximum ${maxImages} images allowed.`);
+      setUploadError(`Maximum ${maxImages} images allowed.`);
       return;
     }
 
@@ -166,6 +125,7 @@ export function ProductImageUploader({ images, onChange, maxImages = 6 }: Produc
     onChange([...images, newImage]);
     setManualUrl('');
     setShowUrlInput(false);
+    setUploadError(null);
   };
 
   return (
@@ -176,7 +136,7 @@ export function ProductImageUploader({ images, onChange, maxImages = 6 }: Produc
             Product Photos ({images.length}/{maxImages})
           </label>
           <p className="text-[11px] text-text-muted mt-0.5">
-            Apne mobile ya PC se product ki 1 se 6 tak HD photos upload karein. Pehli photo Cover Photo banegi.
+            Upload real HD product photos from phone or PC. Saved directly to cloud storage for all devices.
           </p>
         </div>
 
@@ -190,9 +150,17 @@ export function ProductImageUploader({ images, onChange, maxImages = 6 }: Produc
         </button>
       </div>
 
-      {/* Manual URL input toggle */}
+      {uploadError && (
+        <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-xs text-red-400">
+          {uploadError}
+        </div>
+      )}
+
       {showUrlInput && (
-        <form onSubmit={handleAddManualUrl} className="flex gap-2 p-3 rounded-xl bg-elevated/50 border border-border">
+        <form
+          onSubmit={handleAddManualUrl}
+          className="flex gap-2 p-3 rounded-xl bg-elevated/50 border border-border"
+        >
           <Input
             placeholder="Paste image link: https://..."
             value={manualUrl}
@@ -205,13 +173,12 @@ export function ProductImageUploader({ images, onChange, maxImages = 6 }: Produc
         </form>
       )}
 
-      {/* Upload Drag & Drop Box */}
       {images.length < maxImages && (
         <div
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
+          onClick={() => !isProcessing && fileInputRef.current?.click()}
           className={`border-2 border-dashed rounded-2xl p-6 sm:p-8 text-center cursor-pointer transition-all duration-200 ${
             isDragging
               ? 'border-gold bg-gold/10 scale-[1.01]'
@@ -234,21 +201,20 @@ export function ProductImageUploader({ images, onChange, maxImages = 6 }: Produc
 
             <div className="space-y-1">
               <p className="text-xs sm:text-sm font-bold text-text-primary">
-                {isProcessing ? 'Processing photos...' : 'Click to Upload or Drag Photos Here'}
+                {isProcessing ? 'Uploading to Cloud Storage...' : 'Click to Upload or Drag Photos Here'}
               </p>
               <p className="text-[11px] text-text-secondary">
-                PNG, JPG, WEBP • Mobile Camera &amp; Gallery supported • Max {maxImages} photos
+                PNG, JPG, WEBP • Mobile Camera &amp; Gallery supported • Synced across all devices
               </p>
             </div>
 
             <span className="inline-block mt-2 px-3 py-1 rounded-full bg-gold/20 text-gold text-[10px] font-bold uppercase tracking-wider">
-              Browse Files (Choose 1 to {maxImages - images.length} photos)
+              Browse Files ({maxImages - images.length} remaining)
             </span>
           </div>
         </div>
       )}
 
-      {/* Uploaded Photos Grid */}
       {images.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 pt-2">
           {images.map((img, index) => {
@@ -267,7 +233,6 @@ export function ProductImageUploader({ images, onChange, maxImages = 6 }: Produc
                   className="w-full h-full object-cover"
                 />
 
-                {/* Cover Badge */}
                 {isPrimary ? (
                   <div className="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-md bg-gold text-black text-[9px] font-bold uppercase tracking-wider flex items-center gap-1 shadow-md z-10">
                     <Star className="w-2.5 h-2.5 fill-black" />
@@ -284,7 +249,6 @@ export function ProductImageUploader({ images, onChange, maxImages = 6 }: Produc
                   </button>
                 )}
 
-                {/* Delete Button */}
                 <button
                   type="button"
                   onClick={() => handleDeleteImage(img.id)}
@@ -294,7 +258,6 @@ export function ProductImageUploader({ images, onChange, maxImages = 6 }: Produc
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
 
-                {/* Photo sequence index */}
                 <span className="absolute bottom-1.5 right-1.5 text-[9px] font-mono bg-black/70 px-1.5 py-0.5 rounded text-[#A8A29A]">
                   #{index + 1}
                 </span>
@@ -302,10 +265,10 @@ export function ProductImageUploader({ images, onChange, maxImages = 6 }: Produc
             );
           })}
 
-          {/* Add more button if less than maxImages */}
           {images.length < maxImages && (
             <button
               type="button"
+              disabled={isProcessing}
               onClick={() => fileInputRef.current?.click()}
               className="aspect-square rounded-2xl border-2 border-dashed border-[#2E2E2E] hover:border-gold/50 bg-[#121212] flex flex-col items-center justify-center gap-1 text-text-muted hover:text-gold transition-colors"
             >

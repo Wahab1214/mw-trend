@@ -3,33 +3,24 @@
 import * as React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { INITIAL_BUNDLES } from '@/lib/mock-data';
+import { Bundle } from '@/types';
 import { formatPKR } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/lib/store/cart-context';
 import { Gift, Sparkles, Check, ArrowRight } from 'lucide-react';
+import { useCatalog } from '@/lib/store/catalog-context';
 
 export function BundlesSection() {
   const { addItem } = useCart();
+  const { bundles: allBundles } = useCatalog();
   const [addedBundleId, setAddedBundleId] = React.useState<string | null>(null);
-  const [bundles, setBundles] = React.useState<typeof INITIAL_BUNDLES>([]);
-
-  React.useEffect(() => {
-    try {
-      const stored = localStorage.getItem('mw_trends_bundles');
-      if (stored) {
-        setBundles(JSON.parse(stored).filter((b: any) => b.is_active));
-      }
-    } catch {
-      // ignore
-    }
-  }, []);
+  const bundles = allBundles.filter((b) => b.is_active);
 
   if (bundles.length === 0) {
     return null;
   }
 
-  const handleAddBundle = (bundle: typeof INITIAL_BUNDLES[0]) => {
+  const handleAddBundle = (bundle: Bundle) => {
     addItem({
       product_id: bundle.id,
       title: bundle.title,

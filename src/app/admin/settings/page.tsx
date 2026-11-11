@@ -7,37 +7,36 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/toast';
 import { INITIAL_STORE_SETTINGS } from '@/lib/mock-data';
+import { fetchSettingsApi, updateSettingsApi } from '@/lib/catalog-client';
+import { useCatalog } from '@/lib/store/catalog-context';
 import { recordAuditLog } from '@/lib/audit';
 import { StoreSettings } from '@/types';
 import { Store, ShieldCheck, Truck, Banknote, Globe } from 'lucide-react';
 
 export default function AdminSettingsPage() {
   const toast = useToast();
+  const { refreshCatalog } = useCatalog();
   const [settings, setSettings] = React.useState<StoreSettings>(INITIAL_STORE_SETTINGS);
 
   React.useEffect(() => {
-    try {
-      const stored = localStorage.getItem('mw_trends_store_settings');
-      if (stored) {
-        setSettings(JSON.parse(stored));
-      }
-    } catch {
-      // ignore
-    }
+    fetchSettingsApi()
+      .then((s) => {
+        if (s) setSettings(s);
+      })
+      .catch(() => {});
   }, []);
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      localStorage.setItem('mw_trends_store_settings', JSON.stringify(settings));
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new Event('mw_settings_updated'));
-      }
+      const updated = await updateSettingsApi(settings);
+      setSettings(updated);
+      await refreshCatalog();
       recordAuditLog('SETTINGS_UPDATE', 'Store Settings', `Updated store configuration, payment accounts & shipping limits`);
-    } catch {
-      // ignore
+      toast.success('Store configuration & payment details synced across all devices!');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to save store settings to server.');
     }
-    toast.success('Store configuration and payment credentials saved successfully!');
   };
 
   return (

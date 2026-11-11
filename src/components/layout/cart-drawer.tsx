@@ -41,10 +41,10 @@ export function CartDrawer() {
   const [couponCodeInput, setCouponCodeInput] = React.useState('');
   const [showGiftOptions, setShowGiftOptions] = React.useState(false);
 
-  const handleApplyCoupon = (e: React.FormEvent) => {
+  const handleApplyCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!couponCodeInput.trim()) return;
-    const success = applyCoupon(couponCodeInput);
+    const success = await applyCoupon(couponCodeInput);
     if (success) setCouponCodeInput('');
   };
 

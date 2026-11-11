@@ -16,7 +16,8 @@ import { formatPKR, isValidPakistanPhone, generateOrderNumber } from '@/lib/util
 import { PAKISTAN_MAJOR_CITIES, PAYMENT_METHOD_CONFIG } from '@/lib/constants';
 import { PaymentMethod } from '@/types';
 import { getPaymentAdapter } from '@/lib/payments/adapter';
-import { INITIAL_STORE_SETTINGS } from '@/lib/mock-data';
+import { useCatalog } from '@/lib/store/catalog-context';
+import { createOrderApi, uploadImageToCloud } from '@/lib/catalog-client';
 import {
   ShieldCheck,
   Truck,
@@ -66,21 +67,9 @@ export default function CheckoutPage() {
   const [senderAccountName, setSenderAccountName] = React.useState('');
   const [uploadedProofPreview, setUploadedProofPreview] = React.useState<string | null>(null);
 
-  // Submission & Validation States
+  const { settings: storeSettings } = useCatalog();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [errors, setErrors] = React.useState<Record<string, string>>({});
-  const [storeSettings, setStoreSettings] = React.useState(INITIAL_STORE_SETTINGS);
-
-  React.useEffect(() => {
-    try {
-      const stored = localStorage.getItem('mw_trends_store_settings');
-      if (stored) {
-        setStoreSettings(JSON.parse(stored));
-      }
-    } catch {
-      // ignore
-    }
-  }, []);
 
   // If cart is empty, redirect to shop
   React.useEffect(() => {
@@ -89,20 +78,19 @@ export default function CheckoutPage() {
     }
   }, [items, router]);
 
-  // Handle proof image upload simulation
-  const handleProofUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleProofUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error('File size must be under 5MB');
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setUploadedProofPreview(reader.result as string);
-        toast.success('Payment receipt screenshot attached!');
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size must be under 5MB');
+      return;
+    }
+    try {
+      const url = await uploadImageToCloud(file, 'payment-proofs');
+      setUploadedProofPreview(url);
+      toast.success('Payment receipt screenshot uploaded!');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to upload receipt.');
     }
   };
 
@@ -175,9 +163,8 @@ export default function CheckoutPage() {
         return;
       }
 
-      // Persist order in localStorage so it can be retrieved by confirmation & order tracking portal
+      // Persist order to cloud database (Supabase) via /api/orders
       const orderPayload = {
-        id: `ord_${Date.now()}`,
         order_number: orderNumber,
         customer_name: customerName,
         customer_email: customerEmail,
@@ -194,17 +181,16 @@ export default function CheckoutPage() {
         gift_message: giftMessage,
         total_amount: total,
         currency: 'PKR',
-        total_cost_price: items.reduce((acc, i) => acc + (i.unit_cost * i.quantity), 0),
+        total_cost_price: items.reduce((acc, i) => acc + i.unit_cost * i.quantity, 0),
         courier_cost: 180,
         packaging_ad_expense: 100,
-        net_profit: total - (items.reduce((acc, i) => acc + (i.unit_cost * i.quantity), 0) + 180 + 100),
+        net_profit:
+          total - (items.reduce((acc, i) => acc + i.unit_cost * i.quantity, 0) + 180 + 100),
         profit_margin_percent: 45,
         status: 'New',
         payment_method: selectedMethod,
-        payment_status: selectedMethod === 'COD' ? 'pending' : 'verified',
-        created_at: new Date().toISOString(),
-        items: items.map((item, idx) => ({
-          id: `item_${idx}_${Date.now()}`,
+        payment_status: selectedMethod === 'COD' ? 'pending' : 'pending_review',
+        items: items.map((item) => ({
           product_id: item.product_id,
           variant_id: item.variant_id,
           product_title: item.title,
@@ -219,32 +205,27 @@ export default function CheckoutPage() {
         })),
         payment_proof: transactionId
           ? {
-              id: `pp_${Date.now()}`,
               payment_method: selectedMethod,
               transaction_id: transactionId,
               sender_account_name: senderAccountName,
               amount_paid: total,
               status: 'pending_review',
               proof_image_url: uploadedProofPreview,
-              created_at: new Date().toISOString(),
             }
           : undefined,
       };
 
-      // Save order to history in local storage
-      const existingOrdersStr = localStorage.getItem('mw_trends_customer_orders') || '[]';
-      const existingOrders = JSON.parse(existingOrdersStr);
-      localStorage.setItem('mw_trends_customer_orders', JSON.stringify([orderPayload, ...existingOrders]));
+      const savedOrder = await createOrderApi(orderPayload);
 
       // Clear Cart
       clearCart();
 
-      toast.success(`Order ${orderNumber} placed successfully!`, 'Order Confirmed');
+      toast.success(`Order ${savedOrder.order_number || orderNumber} placed successfully!`, 'Order Confirmed');
 
       // Navigate to Order Success page
-      router.push(`/order-success/${orderNumber}`);
-    } catch {
-      toast.error('An unexpected error occurred while placing order. Please try again.');
+      router.push(`/order-success/${savedOrder.order_number || orderNumber}`);
+    } catch (err: any) {
+      toast.error(err?.message || 'An unexpected error occurred while placing order. Please try again.');
       setIsSubmitting(false);
     }
   };

@@ -4,7 +4,8 @@ import * as React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { notFound, useParams } from 'next/navigation';
-import { INITIAL_PRODUCTS, INITIAL_REVIEWS } from '@/lib/mock-data';
+import { useCatalog } from '@/lib/store/catalog-context';
+import { fetchProductByIdOrSlug } from '@/lib/catalog-client';
 import { Product, CustomizationValues } from '@/types';
 import { Price } from '@/components/ui/price';
 import { Rating } from '@/components/ui/rating';
@@ -36,35 +37,46 @@ export default function ProductDetailPage() {
   const params = useParams();
   const slug = params?.slug as string;
 
-  const [product, setProduct] = React.useState<Product | undefined>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem('mw_trends_products');
-        if (stored) {
-          const list = JSON.parse(stored);
-          const found = list.find((p: any) => p.slug === slug);
-          if (found) return found;
-        }
-      } catch {
-        // ignore
-      }
-    }
-    return INITIAL_PRODUCTS.find((p) => p.slug === slug);
-  });
+  const { products, categories, reviews, settings, isLoading } = useCatalog();
+  const [remoteProduct, setRemoteProduct] = React.useState<Product | null>(null);
+  const [lookupDone, setLookupDone] = React.useState(false);
 
-  if (!product) {
-    notFound();
-  }
+  const contextProduct = React.useMemo(
+    () => products.find((p) => p.slug === slug || p.id === slug),
+    [products, slug]
+  );
+
+  const product = remoteProduct || contextProduct;
+
+  React.useEffect(() => {
+    let active = true;
+    if (contextProduct) {
+      setLookupDone(true);
+      return;
+    }
+    if (isLoading) return;
+
+    fetchProductByIdOrSlug(slug)
+      .then((found) => {
+        if (!active) return;
+        if (found) setRemoteProduct(found);
+        setLookupDone(true);
+      })
+      .catch(() => {
+        if (active) setLookupDone(true);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [slug, isLoading, contextProduct]);
 
   const { addItem } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
-  const isWishlisted = isInWishlist(product.id);
 
   // States
   const [activeImageIndex, setActiveImageIndex] = React.useState(0);
-  const [selectedVariantId, setSelectedVariantId] = React.useState<string | undefined>(
-    product.variants?.[0]?.id
-  );
+  const [selectedVariantId, setSelectedVariantId] = React.useState<string | undefined>(undefined);
   const [quantity, setQuantity] = React.useState(1);
   const [customValues, setCustomValues] = React.useState<CustomizationValues>({
     name_text: '',
@@ -74,14 +86,45 @@ export default function ProductDetailPage() {
   const [isCopiedShare, setIsCopiedShare] = React.useState(false);
   const [previewMode, setPreviewMode] = React.useState<'photo' | 'mockup'>('photo');
 
+  React.useEffect(() => {
+    if (product?.variants?.length && !selectedVariantId) {
+      setSelectedVariantId(product.variants[0].id);
+    }
+  }, [product, selectedVariantId]);
+
+  if (!product && (isLoading || !lookupDone)) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 animate-pulse">
+          <div className="lg:col-span-7 aspect-square rounded-2xl bg-surface border border-border" />
+          <div className="lg:col-span-5 space-y-4">
+            <div className="h-4 w-32 bg-surface rounded" />
+            <div className="h-8 w-3/4 bg-surface rounded" />
+            <div className="h-6 w-40 bg-surface rounded" />
+            <div className="h-28 w-full bg-surface rounded-xl" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!product) {
+    notFound();
+  }
+
+  const isWishlisted = isInWishlist(product.id);
+  const categoryObj = categories.find((c) => c.id === product.category_id);
+
   // Selected variant calculations
   const selectedVariant = product.variants?.find((v) => v.id === selectedVariantId);
   const effectivePrice = selectedVariant?.price || product.sale_price || product.regular_price;
   const regularPrice = product.regular_price;
   const currentStock = selectedVariant?.stock_quantity ?? product.stock_quantity;
+  const productImages = product.images || [];
+  const canShowMockup = Boolean(product.has_customization && product.mockup_type && product.mockup_type !== 'none');
 
   const handleAddToCart = () => {
-    const primaryImg = product.images[0]?.image_url || '/brand/monogram.svg';
+    const primaryImg = productImages[0]?.image_url || '/brand/monogram.svg';
 
     addItem({
       product_id: product.id,
@@ -103,7 +146,7 @@ export default function ProductDetailPage() {
     if (navigator.share) {
       navigator.share({
         title: product.title,
-        text: `Check out "${product.title}" on MW Trends!`,
+        text: `Check out "${product.title}" on ${settings.store_name || 'MW Trends'}!`,
         url: window.location.href,
       }).catch(() => {});
     } else {
@@ -113,41 +156,49 @@ export default function ProductDetailPage() {
     }
   };
 
-  const relatedProducts = INITIAL_PRODUCTS.filter(
-    (p) => p.id !== product.id && p.category_id === product.category_id
-  ).slice(0, 4);
+  const relatedProducts = products
+    .filter((p) => p.id !== product.id && p.is_published && p.category_id === product.category_id)
+    .slice(0, 4);
+
+  const productReviews = reviews.filter((r) => r.product_id === product.id);
 
   // WhatsApp order URL
+  const waClean = (settings.whatsapp_number || '+92 337 0566870').replace(/[^0-9]/g, '');
+  const originUrl = typeof window !== 'undefined' ? window.location.origin : '';
   const whatsappText = encodeURIComponent(
-    `Hi MW Trends, I would like to order: "${product.title}" (SKU: ${product.sku || 'N/A'}). URL: https://mwtrends.pk/product/${product.slug}`
+    `Hi ${settings.store_name || 'MW Trends'}, I would like to order: "${product.title}" (SKU: ${product.sku || 'N/A'}). ${originUrl}/product/${product.slug}`
   );
-  const whatsappUrl = `https://wa.me/923370566870?text=${whatsappText}`;
+  const whatsappUrl = `https://wa.me/${waClean}?text=${whatsappText}`;
 
   // JSON-LD Product Schema
-  const productJsonLd = {
+  const productJsonLd: Record<string, any> = {
     '@context': 'https://schema.org/',
     '@type': 'Product',
     name: product.title,
-    image: product.images.map((img) => img.image_url),
+    image: productImages.map((img) => img.image_url),
     description: product.description,
     sku: product.sku,
     brand: {
       '@type': 'Brand',
-      name: 'MW Trends',
+      name: settings.store_name || 'MW Trends',
     },
     offers: {
       '@type': 'Offer',
-      url: `https://mwtrends.pk/product/${product.slug}`,
+      url: `${originUrl}/product/${product.slug}`,
       priceCurrency: 'PKR',
       price: effectivePrice,
       availability: currentStock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
       itemCondition: 'https://schema.org/NewCondition',
     },
-    aggregateRating: {
-      '@type': 'AggregateRating',
-      ratingValue: product.rating_average,
-      reviewCount: product.reviews_count,
-    },
+    ...(product.reviews_count > 0
+      ? {
+          aggregateRating: {
+            '@type': 'AggregateRating',
+            ratingValue: product.rating_average,
+            reviewCount: product.reviews_count,
+          },
+        }
+      : {}),
   };
 
   return (
@@ -162,18 +213,20 @@ export default function ProductDetailPage() {
         <Breadcrumb
           items={[
             { label: 'Shop', href: '/shop' },
-            ...(product.category_name
-              ? [{ label: product.category_name, href: `/category/${product.category_id}` }]
-              : []),
+            ...(categoryObj
+              ? [{ label: categoryObj.name, href: `/category/${categoryObj.slug}` }]
+              : product.category_name
+                ? [{ label: product.category_name, href: '/shop' }]
+                : []),
             { label: product.title },
           ]}
         />
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 pt-4">
-          {/* LEFT: Image Gallery & 3D Live Mockup Preview */}
+          {/* LEFT: Image Gallery & Custom Preview */}
           <div className="lg:col-span-7 space-y-4">
-            {/* View switcher if product has customization */}
-            {product.has_customization && (
+            {/* View switcher if product has mockup customization */}
+            {canShowMockup && (
               <div className="flex items-center gap-2 bg-surface p-1 rounded-xl border border-border w-fit">
                 <button
                   type="button"
@@ -197,30 +250,48 @@ export default function ProductDetailPage() {
                   }`}
                 >
                   <Sparkles className="w-3.5 h-3.5" />
-                  <span>Live 3D Custom Preview</span>
+                  <span>Custom Text Preview</span>
                 </button>
               </div>
             )}
 
             {/* Display Area */}
-            {previewMode === 'mockup' && product.has_customization ? (
+            {previewMode === 'mockup' && canShowMockup ? (
               <LiveMockupPreview
                 mockupType={product.mockup_type}
                 customValues={customValues}
-                baseImage={product.images[0]?.image_url}
+                baseImage={productImages[0]?.image_url}
               />
             ) : (
               <div className="relative w-full aspect-square rounded-2xl bg-[#0E0E0E] border border-border overflow-hidden shadow-md">
-                {product.images[activeImageIndex] && (
+                {productImages[activeImageIndex]?.image_url ? (
                   <Image
-                    src={product.images[activeImageIndex].image_url}
-                    alt={product.images[activeImageIndex].alt_text || product.title}
+                    src={productImages[activeImageIndex].image_url}
+                    alt={productImages[activeImageIndex].alt_text || product.title}
                     fill
-                    unoptimized={product.images[activeImageIndex].image_url?.startsWith('data:')}
+                    unoptimized={productImages[activeImageIndex].image_url?.startsWith('data:')}
                     priority
                     sizes="(max-width: 1024px) 100vw, 60vw"
                     className="object-cover transition-all duration-300"
                   />
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center bg-gradient-to-br from-[#121212] via-[#1B1915] to-[#0B0B0B]">
+                    <div className="w-24 h-24 rounded-2xl border border-gold/30 bg-black/50 p-4 flex items-center justify-center mb-4">
+                      <Image
+                        src="/brand/monogram.svg"
+                        alt="MW Trends"
+                        width={64}
+                        height={64}
+                        className="opacity-90"
+                      />
+                    </div>
+                    <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-gold">
+                      {categoryObj?.name || product.category_name || 'MW Trends Studio'}
+                    </span>
+                    <p className="text-xs text-text-muted max-w-xs mt-2 leading-relaxed">
+                      Product studio photo will appear here soon. Tap Order via WhatsApp for live sample images.
+                    </p>
+                  </div>
                 )}
                 {product.stock_quantity <= 5 && product.stock_quantity > 0 && (
                   <div className="absolute top-4 left-4">
@@ -233,9 +304,9 @@ export default function ProductDetailPage() {
             )}
 
             {/* Thumbnail selector */}
-            {product.images.length > 1 && previewMode === 'photo' && (
+            {productImages.length > 1 && previewMode === 'photo' && (
               <div className="flex items-center gap-3 overflow-x-auto pb-2 no-scrollbar">
-                {product.images.map((img, idx) => (
+                {productImages.map((img, idx) => (
                   <button
                     key={img.id}
                     onClick={() => setActiveImageIndex(idx)}
@@ -301,7 +372,9 @@ export default function ProductDetailPage() {
                   salePrice={product.sale_price}
                   size="xl"
                 />
-                <Rating value={product.rating_average} count={product.reviews_count} size="sm" />
+                {product.reviews_count > 0 && (
+                  <Rating value={product.rating_average} count={product.reviews_count} size="sm" />
+                )}
               </div>
 
               {product.sku && (
@@ -352,7 +425,9 @@ export default function ProductDetailPage() {
                   values={customValues}
                   onChange={(vals) => {
                     setCustomValues(vals);
-                    setPreviewMode('mockup'); // auto switch to live preview when typing
+                    if (canShowMockup && vals.name_text?.trim()) {
+                      setPreviewMode('mockup');
+                    }
                   }}
                   allowCustomerUpload={product.allow_customer_upload}
                 />
@@ -477,58 +552,59 @@ export default function ProductDetailPage() {
                   </div>
                 ),
               },
-              {
-                id: 'reviews',
-                label: `Verified Reviews (${product.reviews_count})`,
-                content: (
-                  <div className="space-y-6 py-2 max-w-4xl">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl bg-elevated/40 border border-border">
-                      <div className="flex items-center gap-3">
-                        <span className="text-3xl font-serif font-black text-gold">
-                          {product.rating_average}
-                        </span>
-                        <div>
-                          <Rating value={product.rating_average} size="md" />
-                          <span className="text-xs text-text-muted block mt-0.5">
-                            Based on {product.reviews_count} verified buyer ratings
-                          </span>
-                        </div>
-                      </div>
-                      <Button variant="outline" size="sm" onClick={() => alert('Review submission is available for verified purchasers after delivery.')}>
-                        Leave a Review
-                      </Button>
-                    </div>
-
-                    <div className="divide-y divide-border">
-                      {INITIAL_REVIEWS.map((rev) => (
-                        <div key={rev.id} className="py-4 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <strong className="text-xs font-bold text-text-primary block">
-                                {rev.author_name}
-                              </strong>
-                              <Rating value={rev.rating} size="sm" />
+              ...(productReviews.length > 0
+                ? [
+                    {
+                      id: 'reviews',
+                      label: `Verified Reviews (${productReviews.length})`,
+                      content: (
+                        <div className="space-y-6 py-2 max-w-4xl">
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl bg-elevated/40 border border-border">
+                            <div className="flex items-center gap-3">
+                              <span className="text-3xl font-serif font-black text-gold">
+                                {product.rating_average}
+                              </span>
+                              <div>
+                                <Rating value={product.rating_average} size="md" />
+                                <span className="text-xs text-text-muted block mt-0.5">
+                                  Based on {productReviews.length} verified buyer ratings
+                                </span>
+                              </div>
                             </div>
-                            {rev.is_verified_buyer && (
-                              <Badge variant="success" size="sm">
-                                Verified Buyer
-                              </Badge>
-                            )}
                           </div>
-                          {rev.title && (
-                            <h5 className="font-serif font-bold text-xs text-text-primary">
-                              {rev.title}
-                            </h5>
-                          )}
-                          <p className="text-xs text-text-secondary leading-relaxed">
-                            {rev.comment}
-                          </p>
+
+                          <div className="divide-y divide-border">
+                            {productReviews.map((rev) => (
+                              <div key={rev.id} className="py-4 space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <strong className="text-xs font-bold text-text-primary block">
+                                      {rev.author_name}
+                                    </strong>
+                                    <Rating value={rev.rating} size="sm" />
+                                  </div>
+                                  {rev.is_verified_buyer && (
+                                    <Badge variant="success" size="sm">
+                                      Verified Buyer
+                                    </Badge>
+                                  )}
+                                </div>
+                                {rev.title && (
+                                  <h5 className="font-serif font-bold text-xs text-text-primary">
+                                    {rev.title}
+                                  </h5>
+                                )}
+                                <p className="text-xs text-text-secondary leading-relaxed">
+                                  {rev.comment}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                ),
-              },
+                      ),
+                    },
+                  ]
+                : []),
             ]}
           />
         </div>

@@ -6,15 +6,17 @@ import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { CheckCircle2, MessageCircle, Truck, Package, ArrowRight, Sparkles } from 'lucide-react';
 import { formatPKR } from '@/lib/utils';
+import { trackOrderApi } from '@/lib/catalog-client';
+import { useCatalog } from '@/lib/store/catalog-context';
 import confetti from 'canvas-confetti';
 
 export default function OrderSuccessPage() {
   const params = useParams();
   const orderNumber = (params?.orderNumber as string) || 'MW-10024';
+  const { settings } = useCatalog();
   const [orderData, setOrderData] = React.useState<any>(null);
 
   React.useEffect(() => {
-    // Launch celebratory confetti
     try {
       confetti({
         particleCount: 100,
@@ -26,25 +28,18 @@ export default function OrderSuccessPage() {
       // ignore
     }
 
-    // Attempt to load order data from localStorage
-    try {
-      const ordersStr = localStorage.getItem('mw_trends_customer_orders');
-      if (ordersStr) {
-        const orders = JSON.parse(ordersStr);
-        const matched = orders.find((o: any) => o.order_number === orderNumber);
-        if (matched) {
-          setOrderData(matched);
-        }
-      }
-    } catch {
-      // ignore
-    }
+    trackOrderApi(orderNumber)
+      .then((found) => {
+        if (found) setOrderData(found);
+      })
+      .catch(() => {});
   }, [orderNumber]);
 
+  const cleanWa = (settings?.whatsapp_number || '923370566870').replace(/[^0-9]/g, '');
   const whatsappMessage = encodeURIComponent(
     `Assalam-o-Alaikum MW Trends! I just placed order #${orderNumber}. Please confirm my order details.`
   );
-  const whatsappUrl = `https://wa.me/923370566870?text=${whatsappMessage}`;
+  const whatsappUrl = `https://wa.me/${cleanWa}?text=${whatsappMessage}`;
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12 select-none space-y-8">

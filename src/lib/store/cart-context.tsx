@@ -4,6 +4,8 @@ import * as React from 'react';
 import { CartItem, PaymentMethod } from '@/types';
 import { getCompatiblePaymentMethods } from '@/lib/utils';
 import { useToast } from '@/components/ui/toast';
+import { useCatalog } from '@/lib/store/catalog-context';
+import { validateCouponApi } from '@/lib/catalog-client';
 
 interface CouponInfo {
   code: string;
@@ -23,7 +25,7 @@ interface CartContextType {
   
   // Coupon
   appliedCoupon: CouponInfo | null;
-  applyCoupon: (code: string) => boolean;
+  applyCoupon: (code: string) => Promise<boolean>;
   removeCoupon: () => void;
 
   // Gift wrap
@@ -54,6 +56,11 @@ const BASE_SHIPPING_FEE = 250;
 const GIFT_WRAP_PRICE = 150;
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { settings } = useCatalog();
+  const freeShippingThreshold = Number(settings?.free_shipping_threshold ?? 3000);
+  const baseShippingFee = Number(settings?.flat_shipping_rate ?? 200);
+  const giftWrapPrice = Number(settings?.gift_wrap_price ?? 150);
+
   const [items, setItems] = React.useState<CartItem[]>([]);
   const [isOpen, setIsOpen] = React.useState<boolean>(false);
   const [appliedCoupon, setAppliedCoupon] = React.useState<CouponInfo | null>(null);
@@ -126,27 +133,26 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setGiftMessage('');
   };
 
-  // Pre-configured coupons
-  const applyCoupon = (code: string): boolean => {
+  // Validate coupons directly against Supabase
+  const applyCoupon = async (code: string): Promise<boolean> => {
     const cleanCode = code.trim().toUpperCase();
-    if (cleanCode === 'MW10') {
-      setAppliedCoupon({ code: 'MW10', discountType: 'percentage', discountValue: 10 });
-      toast.success('10% discount applied!', 'Coupon Applied');
+    if (!cleanCode) return false;
+    try {
+      const currentSubtotal = items.reduce((acc, item) => acc + item.unit_price * item.quantity, 0);
+      const res = await validateCouponApi(cleanCode, currentSubtotal);
+      if (!res.valid || !res.coupon) {
+        toast.error(res.error || 'Invalid or expired coupon code', 'Coupon Error');
+        return false;
+      }
+      setAppliedCoupon({
+        code: res.coupon.code,
+        discountType: res.coupon.discount_type,
+        discountValue: Number(res.coupon.discount_value || 0),
+      });
+      toast.success(`Coupon ${res.coupon.code} applied!`, 'Coupon Applied');
       return true;
-    } else if (cleanCode === 'FREESHIP') {
-      setAppliedCoupon({ code: 'FREESHIP', discountType: 'free_shipping', discountValue: BASE_SHIPPING_FEE });
-      toast.success('Free Express Shipping applied!', 'Coupon Applied');
-      return true;
-    } else if (cleanCode === 'GOLD300') {
-      setAppliedCoupon({ code: 'GOLD300', discountType: 'fixed', discountValue: 300 });
-      toast.success('Rs. 300 discount applied!', 'Coupon Applied');
-      return true;
-    } else if (cleanCode === 'WELCOME15') {
-      setAppliedCoupon({ code: 'WELCOME15', discountType: 'percentage', discountValue: 15 });
-      toast.success('15% First Order discount applied!', 'Coupon Applied');
-      return true;
-    } else {
-      toast.error('Invalid or expired coupon code', 'Coupon Error');
+    } catch {
+      toast.error('Unable to validate coupon right now.', 'Coupon Error');
       return false;
     }
   };
@@ -170,12 +176,14 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   const qualifiesForFreeShipping =
-    subtotal >= FREE_SHIPPING_THRESHOLD || appliedCoupon?.discountType === 'free_shipping';
-  const shippingFee = items.length === 0 ? 0 : qualifiesForFreeShipping ? 0 : BASE_SHIPPING_FEE;
-  const giftWrapFee = isGiftWrapped ? GIFT_WRAP_PRICE : 0;
+    (freeShippingThreshold > 0 && subtotal >= freeShippingThreshold) ||
+    appliedCoupon?.discountType === 'free_shipping';
+  const shippingFee = items.length === 0 ? 0 : qualifiesForFreeShipping ? 0 : baseShippingFee;
+  const giftWrapFee = isGiftWrapped ? giftWrapPrice : 0;
   const total = Math.max(0, subtotal - discountAmount + shippingFee + giftWrapFee);
 
-  const amountNeededForFreeShipping = Math.max(0, FREE_SHIPPING_THRESHOLD - subtotal);
+  const amountNeededForFreeShipping =
+    freeShippingThreshold > 0 ? Math.max(0, freeShippingThreshold - subtotal) : 0;
   const availablePaymentMethods = getCompatiblePaymentMethods(items);
 
   return (
@@ -202,7 +210,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         shippingFee,
         giftWrapFee,
         total,
-        freeShippingThreshold: FREE_SHIPPING_THRESHOLD,
+        freeShippingThreshold,
         amountNeededForFreeShipping,
         availablePaymentMethods,
       }}

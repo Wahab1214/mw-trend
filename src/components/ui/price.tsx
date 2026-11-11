@@ -38,19 +38,19 @@ export const Price: React.FC<PriceProps> = ({
   };
 
   return (
-    <div className={cn('inline-flex items-center gap-2 flex-wrap', className)}>
-      <span className={cn('text-gold font-serif tracking-tight', sizeClasses[size])}>
+    <div className={cn('inline-flex items-baseline gap-1.5 flex-wrap', className)}>
+      <span className={cn('text-gold font-serif tracking-tight whitespace-nowrap', sizeClasses[size])}>
         {formatPKR(currentPrice)}
       </span>
 
       {isSale && (
         <>
-          <span className={cn('line-through text-text-muted font-normal', strikethroughSizes[size])}>
+          <span className={cn('line-through text-text-muted font-normal whitespace-nowrap', strikethroughSizes[size])}>
             {formatPKR(price)}
           </span>
           {showBadge && discountPercent > 0 && (
-            <Badge variant="gold" size="sm">
-              Save {discountPercent}%
+            <Badge variant="gold" size="sm" className="whitespace-nowrap">
+              -{discountPercent}%
             </Badge>
           )}
         </>

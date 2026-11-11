@@ -4,29 +4,16 @@ import * as React from 'react';
 import Link from 'next/link';
 import { Flame, Clock, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { INITIAL_FLASH_SALE } from '@/lib/mock-data';
+import { useCatalog } from '@/lib/store/catalog-context';
 
 export function FlashSaleBanner() {
-  const [activeSale, setActiveSale] = React.useState<typeof INITIAL_FLASH_SALE | null>(null);
+  const { flashSale } = useCatalog();
+  const activeSale = flashSale && flashSale.is_active ? flashSale : null;
   const [timeLeft, setTimeLeft] = React.useState({
     hours: 18,
     minutes: 42,
     seconds: 15,
   });
-
-  React.useEffect(() => {
-    try {
-      const stored = localStorage.getItem('mw_trends_flash_sale');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed.is_active) {
-          setActiveSale(parsed);
-        }
-      }
-    } catch {
-      // ignore
-    }
-  }, []);
 
   React.useEffect(() => {
     if (!activeSale) return;

@@ -3,34 +3,21 @@
 import * as React from 'react';
 import { usePathname } from 'next/navigation';
 import { MessageCircle, X } from 'lucide-react';
+import { useCatalog } from '@/lib/store/catalog-context';
 
 export function WhatsAppFloating() {
   const pathname = usePathname();
+  const { settings } = useCatalog();
   const [showTooltip, setShowTooltip] = React.useState(false);
 
-  // Show a welcome tooltip once after 3 seconds
-  const [whatsappNumber, setWhatsappNumber] = React.useState('923370566870');
+  const rawNumber = settings?.whatsapp_number || '923370566870';
+  const cleanNumber = rawNumber.replace(/[^0-9]/g, '');
+  const whatsappNumber = cleanNumber.length >= 10 ? cleanNumber : '923370566870';
 
   React.useEffect(() => {
     const timer = setTimeout(() => {
       setShowTooltip(true);
     }, 3000);
-
-    try {
-      const stored = localStorage.getItem('mw_trends_store_settings');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed.whatsapp_number) {
-          const clean = parsed.whatsapp_number.replace(/[^0-9]/g, '');
-          if (clean && clean.length >= 10) {
-            setWhatsappNumber(clean);
-          }
-        }
-      }
-    } catch {
-      // ignore
-    }
-
     return () => clearTimeout(timer);
   }, []);
 
